@@ -3,6 +3,7 @@
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [<img src="https://img.shields.io/pypi/v/pyvaulty.svg" align="right">](https://pypi.python.org/pypi/pyvaulty/)
 
+<!-- BEGIN -->
 <h2 align="center">Vaulty - Encrypt/Decrypt with ChaCha20-Poly1305</h2>
 
 Vaulty is an extremely lightweight encryption/decryption tool which uses ChaCha20-Poly1305 to provide 256-bit authenticated encryption (AEAD) using Scrypt as the password based key derivation function. It can be used to encrypt/decrypt files, or `stdin` if you don't specify any files.

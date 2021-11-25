@@ -105,7 +105,7 @@ def args():
       elif m.lower() == 'decrypt'[0:len(m)]:
         return 'decrypt'
 
-def main(m=args(), cols=80, v = Vaulty()):
+def main(m=args(), cols=80, v=Vaulty()):
   if m is not None:
     if len(sys.argv) == 2:
       data = sys.stdin.buffer.read()

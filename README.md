@@ -4,7 +4,7 @@
 
 <h2 align="center">Vaulty - Encrypt/Decrypt with ChaCha20-Poly1305</h2>
 
-### Vaulty Usage
+#### Vaulty Usage
 
 ```
 vaulty.py encrypt|decrypt [file1[ file2[ ...]]]

@@ -1,7 +1,6 @@
-![Release](https://img.shields.io/github/v/release/cmason3/vaulty)
+[![PyPI](https://img.shields.io/pypi/v/pyvaulty.svg")](https://pypi.python.org/pypi/pyvaulty/)
 ![Size](https://img.shields.io/github/languages/code-size/cmason3/vaulty?label=size)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](https://opensource.org/licenses/MIT)
-[<img src="https://img.shields.io/pypi/v/pyvaulty.svg" align="right">](https://pypi.python.org/pypi/pyvaulty/)
 
 ## Vaulty
 ### Encrypt/Decrypt with ChaCha20-Poly1305

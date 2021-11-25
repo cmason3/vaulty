@@ -4,6 +4,8 @@
 
 <h2 align="center">Vaulty - Encrypt/Decrypt with ChaCha20-Poly1305</h2>
 
+Vaulty is a lightweight encryption/decryption tool which uses ChaCha20-Poly1305 to provide 256-bit authenticated encryption (AEAD). It can be used to encrypt/decrypt files or `stdin` if you don't specify any files.
+
 #### Vaulty Usage
 
 ```

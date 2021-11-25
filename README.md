@@ -1,4 +1,4 @@
-[![PyPI](https://img.shields.io/pypi/v/pyvaulty.svg")](https://pypi.python.org/pypi/pyvaulty/)
+[![PyPI](https://img.shields.io/pypi/v/pyvaulty.svg)](https://pypi.python.org/pypi/pyvaulty/)
 ![Size](https://img.shields.io/github/languages/code-size/cmason3/vaulty?label=size)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 

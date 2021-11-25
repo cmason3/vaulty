@@ -34,12 +34,11 @@ Hello World
 ```
 
 ```python
-from getpass import getpass
-from vaulty import Vaulty
+import getpass, vaulty
 
-v = Vaulty()
+v = vaulty.Vaulty()
 
-password = getpass('Vaulty Password: ').encode('utf-8')
+password = getpass.getpass('Vaulty Password: ').encode('utf-8')
 ciphertext = v.encrypt('Hello World'.encode('utf-8'), password)
 
 plaintext = v.decrypt(ciphertext, password).decode('utf-8')

@@ -37,10 +37,12 @@ Hello World
 from getpass import getpass
 from vaulty import Vaulty
 
-password = getpass('Vaulty Password: ').encode('utf-8')
-ciphertext = Vaulty().encrypt('Hello World'.encode('utf-8'), password)
+v = Vaulty()
 
-plaintext = Vaulty().decrypt(ciphertext, password).decode('utf-8')
+password = getpass('Vaulty Password: ').encode('utf-8')
+ciphertext = v.encrypt('Hello World'.encode('utf-8'), password)
+
+plaintext = v.decrypt(ciphertext, password).decode('utf-8')
 if plaintext is None:
   print('error: invalid password or data not encrypted', file=sys.stderr)
 ```

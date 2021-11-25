@@ -30,7 +30,7 @@ vaulty encrypt|decrypt [file1[ file2[ ...]]]
 echo "Hello World" | vaulty encrypt
 $VAULTY;AY3eJ98NF6WFDMAP62lRdl58A2db5XJ2gNvKd0nmDs5ZrmNlJ8TSURpxc3bNF1iGw77dHA==
 
-echo "$VAULTY;AY3eJ98NF6WFDMAP62lRdl58A2db5XJ2gNvKd0nmDs5ZrmNlJ8TSURpxc3bNF1iGw77dHA==" | vaulty decrypt
+echo "$VAULTY;..." | vaulty decrypt
 Hello World
 ```
 

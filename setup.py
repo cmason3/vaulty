@@ -7,7 +7,7 @@ README = (HERE / "README.md").read_text()
 
 setup(
   name="pyvaulty",
-  version="1.0.0",
+  version="1.0.1",
   description="Encrypt/Decrypt with ChaCha20-Poly1305",
   long_description=README[README.find('#'):],
   long_description_content_type="text/markdown",

@@ -21,9 +21,10 @@ from cryptography.hazmat.primitives.ciphers.aead import ChaCha20Poly1305
 from cryptography.hazmat.backends import default_backend
 from cryptography.exceptions import InvalidTag
 
+__version__ = '1.0.1'
+
 class Vaulty():
   def __init__(self):
-    self.__version__ = '1.0.0'
     self.__prefix = '$VAULTY;'
     self.__extension = '.vlt'
     self.__kcache = {}

@@ -1,7 +1,10 @@
 import pathlib
 from setuptools import setup
 
-from vaulty import __version__
+for line in open('vaulty.py'):
+  if line.startswith('__version__'):
+    exec(line)
+    break
 
 HERE = pathlib.Path(__file__).parent
 

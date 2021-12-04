@@ -1,13 +1,15 @@
 import pathlib
 from setuptools import setup
 
+from vaulty import __version__
+
 HERE = pathlib.Path(__file__).parent
 
 README = (HERE / "README.md").read_text()
 
 setup(
   name="pyvaulty",
-  version="1.0.1",
+  version=__version__,
   description="Encrypt/Decrypt with ChaCha20-Poly1305",
   long_description=README[README.find('#'):],
   long_description_content_type="text/markdown",

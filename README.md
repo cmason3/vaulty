@@ -1,7 +1,6 @@
 [![PyPI](https://img.shields.io/pypi/v/pyvaulty.svg)](https://pypi.python.org/pypi/pyvaulty/)
 ![Python](https://img.shields.io/badge/python-≥&nbsp;3.6-green)
 ![Size](https://img.shields.io/github/languages/code-size/cmason3/vaulty?label=size)
-[![License](https://img.shields.io/badge/license-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 
 ## Vaulty
 ### Encrypt/Decrypt with ChaCha20-Poly1305

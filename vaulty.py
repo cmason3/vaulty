@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 # Vaulty - Encrypt/Decrypt with ChaCha20-Poly1305
-# Copyright (c) 2021 Chris Mason <chris@netnix.org>
+# Copyright (c) 2021-2022 Chris Mason <chris@netnix.org>
 #
 # Permission to use, copy, modify, and distribute this software for any
 # purpose with or without fee is hereby granted, provided that the above
@@ -16,12 +16,13 @@
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 import sys, os, base64, getpass
+from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.scrypt import Scrypt
 from cryptography.hazmat.primitives.ciphers.aead import ChaCha20Poly1305
 from cryptography.hazmat.backends import default_backend
 from cryptography.exceptions import InvalidTag
 
-__version__ = '1.0.1'
+__version__ = '1.1.0'
 
 class Vaulty():
   def __init__(self):
@@ -71,6 +72,11 @@ class Vaulty():
     except InvalidTag:
       pass
 
+  def sha256(self, data):
+    digest = hashes.Hash(hashes.SHA256())
+    digest.update(data)
+    return digest.finalize().hex().encode('utf-8')
+
   def encrypt_file(self, filepath, password, cols=None):
     if os.path.getsize(filepath) < 2**31:
       with open(filepath, 'rb') as fh:
@@ -96,6 +102,15 @@ class Vaulty():
 
       return True
 
+  def sha256_file(self, filepath):
+    with open(filepath, 'rb') as fh:
+      digest = hashes.Hash(hashes.SHA256())
+
+      for data in iter(lambda: fh.read(65536), b''):
+        digest.update(data)
+      
+      return digest.finalize().hex().encode('utf-8')
+
 
 def __args():
   if len(sys.argv) >= 2:
@@ -105,61 +120,72 @@ def __args():
         return 'encrypt'
       elif m.lower() == 'decrypt'[0:len(m)]:
         return 'decrypt'
+      elif m.lower() == 'sha256'[0:len(m)]:
+        return 'sha256'
 
 def main(m=__args(), cols=80, v=Vaulty()):
   if m is not None:
     if len(sys.argv) == 2:
       data = sys.stdin.buffer.read()
 
-    password = getpass.getpass('Vaulty Password: ').encode('utf-8')
-    if len(password) > 0:
-      if m == 'encrypt':
-        if password == getpass.getpass('Password Verification: ').encode('utf-8'):
+    if m == 'sha256':
+      if len(sys.argv) == 2:
+        print(v.sha256(data).decode('utf-8'))
+
+      else:
+        for f in sys.argv[2:]:
+          print(v.sha256_file(f).decode('utf-8') + '  ' + f)
+
+    else:
+      password = getpass.getpass('Vaulty Password: ').encode('utf-8')
+      if len(password) > 0:
+        if m == 'encrypt':
+          if password == getpass.getpass('Password Verification: ').encode('utf-8'):
+            if len(sys.argv) == 2:
+              print(v.encrypt(data, password, cols).decode('utf-8'), flush=True, end='')
+        
+            else:
+              print()
+              for f in sys.argv[2:]:
+                print('encrypting ' + f + '... ', flush=True, end='')
+  
+                if os.path.abspath(sys.argv[0]) == os.path.abspath(f):
+                  print('\x1b[1;31mfailed\nerror: file prohibited from being encrypted\x1b[0m', file=sys.stderr)
+                  
+                else:
+                  if v.encrypt_file(f, password, cols) is None:
+                    print('\x1b[1;31mfailed\nerror: file is too big to be encrypted (max size is <2gb)\x1b[0m', file=sys.stderr)
+  
+                  else:
+                    print('\x1b[1;32mok\x1b[0m')
+    
+          else:
+            print('\x1b[1;31merror: password verification failed\x1b[0m', file=sys.stderr)
+    
+        elif m == 'decrypt':
           if len(sys.argv) == 2:
-            print(v.encrypt(data, password, cols).decode('utf-8'), flush=True, end='')
-      
+            plaintext = v.decrypt(data, password)
+            if plaintext is not None:
+              print(plaintext.decode('utf-8'), flush=True, end='')
+    
+            else:
+              print('\x1b[1;31merror: invalid password or data not encrypted\x1b[0m', file=sys.stderr)
+    
           else:
             print()
             for f in sys.argv[2:]:
-              print('encrypting ' + f + '... ', flush=True, end='')
-
-              if os.path.abspath(sys.argv[0]) == os.path.abspath(f):
-                print('\x1b[1;31mfailed\nerror: file prohibited from being encrypted\x1b[0m', file=sys.stderr)
-                
+              print('decrypting ' + f + '... ', flush=True, end='')
+              if v.decrypt_file(f, password) is None:
+                print('\x1b[1;31mfailed\nerror: invalid password or file not encrypted\x1b[0m', file=sys.stderr)
+  
               else:
-                if v.encrypt_file(f, password, cols) is None:
-                  print('\x1b[1;31mfailed\nerror: file is too big to be encrypted (max size is <2gb)\x1b[0m', file=sys.stderr)
-
-                else:
-                  print('\x1b[1;32mok\x1b[0m')
+                print('\x1b[1;32mok\x1b[0m')
   
-        else:
-          print('\x1b[1;31merror: password verification failed\x1b[0m', file=sys.stderr)
-  
-      elif m == 'decrypt':
-        if len(sys.argv) == 2:
-          plaintext = v.decrypt(data, password)
-          if plaintext is not None:
-            print(plaintext.decode('utf-8'), flush=True, end='')
-  
-          else:
-            print('\x1b[1;31merror: invalid password or data not encrypted\x1b[0m', file=sys.stderr)
-  
-        else:
-          print()
-          for f in sys.argv[2:]:
-            print('decrypting ' + f + '... ', flush=True, end='')
-            if v.decrypt_file(f, password) is None:
-              print('\x1b[1;31mfailed\nerror: invalid password or file not encrypted\x1b[0m', file=sys.stderr)
-
-            else:
-              print('\x1b[1;32mok\x1b[0m')
-
-    else:
-      print('\x1b[1;31merror: password is mandatory\x1b[0m', file=sys.stderr)
+      else:
+        print('\x1b[1;31merror: password is mandatory\x1b[0m', file=sys.stderr)
 
   else:
-    print('usage: ' + os.path.basename(sys.argv[0]) + ' encrypt|decrypt [file1[ file2[ ...]]]', file=sys.stderr)
+    print('usage: ' + os.path.basename(sys.argv[0]) + ' encrypt|decrypt|sha256 [file1[ file2[ ...]]]', file=sys.stderr)
 
 
 if __name__ == '__main__':

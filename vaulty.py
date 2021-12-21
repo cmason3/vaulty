@@ -17,8 +17,12 @@
 
 import sys, os, base64, getpass
 from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.kdf.scrypt import Scrypt
 from cryptography.hazmat.primitives.ciphers.aead import ChaCha20Poly1305
+from cryptography.hazmat.primitives.asymmetric.x25519 import X25519PrivateKey
+from cryptography.hazmat.primitives.asymmetric.x25519 import X25519PublicKey
+from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 from cryptography.hazmat.backends import default_backend
 from cryptography.exceptions import InvalidTag
 
@@ -44,6 +48,29 @@ class Vaulty():
     self.__kcache[ckey] = [salt, key]
     return salt, key
   
+  def encrypt_ecc(self, plaintext, public_key, cols=None, armour=True):
+    version = b'\x41'
+    private = X25519PrivateKey.generate()
+    public = private.public_key().public_bytes(serialization.Encoding.Raw, serialization.PublicFormat.Raw)
+    salt = os.urandom(16)
+
+    key = private.exchange(X25519PublicKey.from_public_bytes(public_key))
+    key = HKDF(algorithm=hashes.SHA256(), length=32, salt=salt, info=b'vaulty').derive(key)
+
+    nonce = os.urandom(12)
+    ciphertext = ChaCha20Poly1305(key).encrypt(nonce, plaintext, None)
+
+    if armour:
+      r = self.__prefix.encode('utf-8') + base64.b64encode(version + salt + public + nonce + ciphertext)
+
+      if cols is not None:
+        r = b'\n'.join([r[i:i + cols] for i in range(0, len(r), cols)])
+
+      return r + b'\n'
+
+    else:
+      return version + salt + public + nonce + ciphertext
+
   def encrypt(self, plaintext, password, cols=None, armour=True):
     version = b'\x01'
     salt, key = self.__derive_key(password)
@@ -61,6 +88,19 @@ class Vaulty():
     else:
       return version + salt + nonce + ciphertext
   
+  def decrypt_ecc(self, ciphertext, private_key):
+    try:
+      if ciphertext.lstrip().startswith(self.__prefix.encode('utf-8')):
+        ciphertext = base64.b64decode(ciphertext.strip()[8:])
+
+      if len(ciphertext) > 61 and ciphertext.startswith(b'\x41'):
+        key = X25519PrivateKey.from_private_bytes(private_key).exchange(X25519PublicKey.from_public_bytes(ciphertext[17:49]))
+        key = HKDF(algorithm=hashes.SHA256(), length=32, salt=ciphertext[1:17], info=b'vaulty').derive(key)
+        return ChaCha20Poly1305(key).decrypt(ciphertext[49:61], ciphertext[61:], None)
+
+    except InvalidTag:
+      pass
+
   def decrypt(self, ciphertext, password):
     try:
       if ciphertext.lstrip().startswith(self.__prefix.encode('utf-8')):

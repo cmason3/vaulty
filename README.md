@@ -32,7 +32,7 @@ $VAULTY;AY3eJ98NF6WFDMAP62lRdl58A2db5XJ2gNvKd0nmDs5ZrmNlJ8TSURpxc3bNF1iGw77dHA==
 echo "$VAULTY;..." | vaulty decrypt
 Hello World
 
-echo "Hello World" | vaulty sha256
+echo "Hello World" | vaulty hash
 d2a84f4b8b650937ec8f73cd8be2c74add5a911ba64df27458ed8229da804a26
 ```
 
@@ -48,5 +48,5 @@ plaintext = v.decrypt(ciphertext, password).decode('utf-8')
 if plaintext is None:
   print('error: invalid password or data not encrypted', file=sys.stderr)
 
-sha256_hash = v.sha256('Hello World'.encode('utf-8'))
+sha256_hash = v.hash('Hello World'.encode('utf-8'))
 ```

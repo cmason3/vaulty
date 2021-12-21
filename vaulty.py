@@ -28,6 +28,7 @@ class Vaulty():
   def __init__(self):
     self.__prefix = '$VAULTY;'
     self.__extension = '.vlt'
+    self.__hash = hashes.SHA256()
     self.__kcache = {}
 
   def __derive_key(self, password, salt=None):
@@ -72,8 +73,8 @@ class Vaulty():
     except InvalidTag:
       pass
 
-  def sha256(self, data):
-    digest = hashes.Hash(hashes.SHA256())
+  def hash(self, data):
+    digest = hashes.Hash(self.__hash)
     digest.update(data)
     return digest.finalize().hex().encode('utf-8')
 
@@ -102,9 +103,9 @@ class Vaulty():
 
       return True
 
-  def sha256_file(self, filepath):
+  def hash_file(self, filepath):
     with open(filepath, 'rb') as fh:
-      digest = hashes.Hash(hashes.SHA256())
+      digest = hashes.Hash(self.__hash)
 
       for data in iter(lambda: fh.read(65536), b''):
         digest.update(data)
@@ -120,21 +121,21 @@ def __args():
         return 'encrypt'
       elif m.lower() == 'decrypt'[0:len(m)]:
         return 'decrypt'
-      elif m.lower() == 'sha256'[0:len(m)]:
-        return 'sha256'
+      elif m.lower() == 'hash'[0:len(m)]:
+        return 'hash'
 
 def main(m=__args(), cols=80, v=Vaulty()):
   if m is not None:
     if len(sys.argv) == 2:
       data = sys.stdin.buffer.read()
 
-    if m == 'sha256':
+    if m == 'hash':
       if len(sys.argv) == 2:
-        print(v.sha256(data).decode('utf-8'))
+        print(v.hash(data).decode('utf-8'))
 
       else:
         for f in sys.argv[2:]:
-          print(v.sha256_file(f).decode('utf-8') + '  ' + f)
+          print(v.hash_file(f).decode('utf-8') + '  ' + f)
 
     else:
       password = getpass.getpass('Vaulty Password: ').encode('utf-8')
@@ -185,7 +186,7 @@ def main(m=__args(), cols=80, v=Vaulty()):
         print('\x1b[1;31merror: password is mandatory\x1b[0m', file=sys.stderr)
 
   else:
-    print('usage: ' + os.path.basename(sys.argv[0]) + ' encrypt|decrypt|sha256 [file1[ file2[ ...]]]', file=sys.stderr)
+    print('usage: ' + os.path.basename(sys.argv[0]) + ' encrypt|decrypt|hash [file1[ file2[ ...]]]', file=sys.stderr)
 
 
 if __name__ == '__main__':

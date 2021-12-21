@@ -47,4 +47,6 @@ ciphertext = v.encrypt('Hello World'.encode('utf-8'), password)
 plaintext = v.decrypt(ciphertext, password).decode('utf-8')
 if plaintext is None:
   print('error: invalid password or data not encrypted', file=sys.stderr)
+
+sha256_hash = v.sha256('Hello World'.encode('utf-8'))
 ```

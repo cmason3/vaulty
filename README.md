@@ -20,7 +20,7 @@ python3 -m pip install --upgrade --user pyvaulty
 #### Vaulty Usage
 
 ```
-vaulty encrypt|decrypt [file1[ file2[ ...]]]
+vaulty encrypt|decrypt|sha256 [file1[ file2[ ...]]]
 ```
 
 #### Example Usage
@@ -31,6 +31,9 @@ $VAULTY;AY3eJ98NF6WFDMAP62lRdl58A2db5XJ2gNvKd0nmDs5ZrmNlJ8TSURpxc3bNF1iGw77dHA==
 
 echo "$VAULTY;..." | vaulty decrypt
 Hello World
+
+echo "Hello World" | vaulty sha256
+d2a84f4b8b650937ec8f73cd8be2c74add5a911ba64df27458ed8229da804a26
 ```
 
 ```python

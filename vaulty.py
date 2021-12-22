@@ -32,7 +32,6 @@ class Vaulty():
   def __init__(self):
     self.__prefix = '$VAULTY;'
     self.__extension = '.vlt'
-    self.__hash = hashes.SHA256()
     self.__kcache = {}
 
   def __derive_key(self, password, salt=None):
@@ -47,6 +46,10 @@ class Vaulty():
     key = Scrypt(salt, 32, 2**16, 8, 1, default_backend()).derive(password)
     self.__kcache[ckey] = [salt, key]
     return salt, key
+
+  def generate_keypair(self):
+    # remember to fix version onto public key 
+    pass
   
   def encrypt_ecc(self, plaintext, public_key, cols=None, armour=True):
     version = b'\x41'
@@ -113,8 +116,8 @@ class Vaulty():
     except InvalidTag:
       pass
 
-  def hash(self, data):
-    digest = hashes.Hash(self.__hash)
+  def hash(self, data, algorithm):
+    digest = hashes.Hash(getattr(hashes, algorithm.upper())())
     digest.update(data)
     return digest.finalize().hex().encode('utf-8')
 
@@ -143,10 +146,10 @@ class Vaulty():
 
       return True
 
-  def hash_file(self, filepath):
-    with open(filepath, 'rb') as fh:
-      digest = hashes.Hash(self.__hash)
+  def hash_file(self, filepath, algorithm):
+    digest = hashes.Hash(getattr(hashes, algorithm.upper())())
 
+    with open(filepath, 'rb') as fh:
       for data in iter(lambda: fh.read(65536), b''):
         digest.update(data)
       
@@ -161,21 +164,21 @@ def __args():
         return 'encrypt'
       elif m.lower() == 'decrypt'[0:len(m)]:
         return 'decrypt'
-      elif m.lower() == 'hash'[0:len(m)]:
-        return 'hash'
+      elif m.lower() == 'sha256'[0:len(m)]:
+        return 'sha256'
 
 def main(m=__args(), cols=80, v=Vaulty()):
   if m is not None:
     if len(sys.argv) == 2:
       data = sys.stdin.buffer.read()
 
-    if m == 'hash':
+    if m == 'sha256':
       if len(sys.argv) == 2:
-        print(v.hash(data).decode('utf-8'))
+        print(v.hash(data, m).decode('utf-8'))
 
       else:
         for f in sys.argv[2:]:
-          print(v.hash_file(f).decode('utf-8') + '  ' + f)
+          print(v.hash_file(f, m).decode('utf-8') + '  ' + f)
 
     else:
       password = getpass.getpass('Vaulty Password: ').encode('utf-8')
@@ -226,7 +229,7 @@ def main(m=__args(), cols=80, v=Vaulty()):
         print('\x1b[1;31merror: password is mandatory\x1b[0m', file=sys.stderr)
 
   else:
-    print('usage: ' + os.path.basename(sys.argv[0]) + ' encrypt|decrypt|hash [file1[ file2[ ...]]]', file=sys.stderr)
+    print('usage: ' + os.path.basename(sys.argv[0]) + ' encrypt|decrypt|sha256 [file1[ file2[ ...]]]', file=sys.stderr)
 
 
 if __name__ == '__main__':

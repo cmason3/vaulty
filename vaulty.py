@@ -123,10 +123,10 @@ class Vaulty():
     digest.update(data)
     return digest.finalize().hex().encode('utf-8')
 
-  def encrypt_file(self, filepath, password):
+  def __encrypt_file(self, filepath, pdata, method):
     if os.path.getsize(filepath) < 2**31:
       with open(filepath, 'rb') as fh:
-        ciphertext = self.encrypt(fh.read(), password, None, False)
+        ciphertext = getattr(self, method)(fh.read(), pdata, None, False)
 
       if ciphertext is not None:
         with open(filepath, 'wb') as fh:
@@ -135,9 +135,9 @@ class Vaulty():
         os.rename(filepath, filepath + self.__extension)
         return True
 
-  def decrypt_file(self, filepath, password):
+  def __decrypt_file(self, filepath, pdata, method):
     with open(filepath, 'rb') as fh:
-      plaintext = self.decrypt(fh.read(), password)
+      plaintext = getattr(self, method)(fh.read(), pdata)
 
     if plaintext is not None:
       with open(filepath, 'wb') as fh:
@@ -148,11 +148,17 @@ class Vaulty():
 
       return True
 
+  def encrypt_file(self, filepath, password):
+    return self.__encrypt_file(filepath, password, 'encrypt')
+
+  def decrypt_file(self, filepath, password):
+    return self.__decrypt_file(filepath, password, 'decrypt')
+
   def encrypt_file_ecc(self, filepath, public_key):
-    pass
+    return self.__encrypt_file(filepath, public_key, 'encrypt_ecc')
 
   def decrypt_file_ecc(self, filepath, private_key):
-    pass
+    return self.__decrypt_file(filepath, private_key, 'decrypt_ecc')
 
   def hash_file(self, filepath, algorithm):
     digest = hashes.Hash(getattr(hashes, algorithm.upper())())

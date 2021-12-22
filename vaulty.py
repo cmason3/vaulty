@@ -32,6 +32,7 @@ class Vaulty():
   def __init__(self):
     self.__prefix = '$VAULTY;'
     self.__extension = '.vlt'
+    self.__bufsize = 64 * 1024
     self.__kcache = {}
 
   def __derive_key(self, password, salt=None):
@@ -47,33 +48,12 @@ class Vaulty():
     self.__kcache[ckey] = [salt, key]
     return salt, key
 
-  def generate_keypair(self):
-    # remember to fix version onto public key 
-    pass
+  def generate_keypair(self, version=b'\x41'):
+    if version == b'\x41':
+      private = X25519PrivateKey.generate()
+      public = version + private.public_key().public_bytes(serialization.Encoding.Raw, serialization.PublicFormat.Raw)
+      return private.private_bytes(serialization.Encoding.Raw, serialization.PrivateFormat.Raw, serialization.NoEncryption()), public
   
-  def encrypt_ecc(self, plaintext, public_key, cols=None, armour=True):
-    version = b'\x41'
-    private = X25519PrivateKey.generate()
-    public = private.public_key().public_bytes(serialization.Encoding.Raw, serialization.PublicFormat.Raw)
-    salt = os.urandom(16)
-
-    key = private.exchange(X25519PublicKey.from_public_bytes(public_key))
-    key = HKDF(algorithm=hashes.SHA256(), length=32, salt=salt, info=b'vaulty').derive(key)
-
-    nonce = os.urandom(12)
-    ciphertext = ChaCha20Poly1305(key).encrypt(nonce, plaintext, None)
-
-    if armour:
-      r = self.__prefix.encode('utf-8') + base64.b64encode(version + salt + public + nonce + ciphertext)
-
-      if cols is not None:
-        r = b'\n'.join([r[i:i + cols] for i in range(0, len(r), cols)])
-
-      return r + b'\n'
-
-    else:
-      return version + salt + public + nonce + ciphertext
-
   def encrypt(self, plaintext, password, cols=None, armour=True):
     version = b'\x01'
     salt, key = self.__derive_key(password)
@@ -91,6 +71,40 @@ class Vaulty():
     else:
       return version + salt + nonce + ciphertext
   
+  def decrypt(self, ciphertext, password):
+    try:
+      if ciphertext.lstrip().startswith(self.__prefix.encode('utf-8')):
+        ciphertext = base64.b64decode(ciphertext.strip()[8:])
+
+      if len(ciphertext) > 29 and ciphertext.startswith(b'\x01'):
+        key = self.__derive_key(password, ciphertext[1:17])[1]
+        return ChaCha20Poly1305(key).decrypt(ciphertext[17:29], ciphertext[29:], None)
+
+    except InvalidTag:
+      pass
+
+  def encrypt_ecc(self, plaintext, public_key, cols=None, armour=True):
+    if public_key.startswith(b'\x41'):
+      private, public = self.generate_keypair(public_key[:1])
+      salt = os.urandom(16)
+  
+      key = X25519PrivateKey.from_private_bytes(private).exchange(X25519PublicKey.from_public_bytes(public_key[1:]))
+      key = HKDF(algorithm=hashes.SHA256(), length=32, salt=salt, info=b'vaulty').derive(key)
+  
+      nonce = os.urandom(12)
+      ciphertext = ChaCha20Poly1305(key).encrypt(nonce, plaintext, None)
+  
+      if armour:
+        r = self.__prefix.encode('utf-8') + base64.b64encode(public_key[:1] + salt + public[1:] + nonce + ciphertext)
+  
+        if cols is not None:
+          r = b'\n'.join([r[i:i + cols] for i in range(0, len(r), cols)])
+  
+        return r + b'\n'
+  
+      else:
+        return public_key[:1] + salt + public[1:] + nonce + ciphertext
+
   def decrypt_ecc(self, ciphertext, private_key):
     try:
       if ciphertext.lstrip().startswith(self.__prefix.encode('utf-8')):
@@ -104,27 +118,15 @@ class Vaulty():
     except InvalidTag:
       pass
 
-  def decrypt(self, ciphertext, password):
-    try:
-      if ciphertext.lstrip().startswith(self.__prefix.encode('utf-8')):
-        ciphertext = base64.b64decode(ciphertext.strip()[8:])
-
-      if len(ciphertext) > 29 and ciphertext.startswith(b'\x01'):
-        key = self.__derive_key(password, ciphertext[1:17])[1]
-        return ChaCha20Poly1305(key).decrypt(ciphertext[17:29], ciphertext[29:], None)
-
-    except InvalidTag:
-      pass
-
   def hash(self, data, algorithm):
     digest = hashes.Hash(getattr(hashes, algorithm.upper())())
     digest.update(data)
     return digest.finalize().hex().encode('utf-8')
 
-  def encrypt_file(self, filepath, password, cols=None):
+  def encrypt_file(self, filepath, password):
     if os.path.getsize(filepath) < 2**31:
       with open(filepath, 'rb') as fh:
-        ciphertext = self.encrypt(fh.read(), password, cols, False)
+        ciphertext = self.encrypt(fh.read(), password, None, False)
 
       if ciphertext is not None:
         with open(filepath, 'wb') as fh:
@@ -146,11 +148,17 @@ class Vaulty():
 
       return True
 
+  def encrypt_file_ecc(self, filepath, public_key):
+    pass
+
+  def decrypt_file_ecc(self, filepath, private_key):
+    pass
+
   def hash_file(self, filepath, algorithm):
     digest = hashes.Hash(getattr(hashes, algorithm.upper())())
 
     with open(filepath, 'rb') as fh:
-      for data in iter(lambda: fh.read(65536), b''):
+      for data in iter(lambda: fh.read(self.__bufsize), b''):
         digest.update(data)
       
       return digest.finalize().hex().encode('utf-8')
@@ -164,6 +172,8 @@ def __args():
         return 'encrypt'
       elif m.lower() == 'decrypt'[0:len(m)]:
         return 'decrypt'
+      elif m.lower() == 'generate'[0:len(m)]:
+        return 'generate'
       elif m.lower() == 'sha256'[0:len(m)]:
         return 'sha256'
 
@@ -172,7 +182,10 @@ def main(m=__args(), cols=80, v=Vaulty()):
     if len(sys.argv) == 2:
       data = sys.stdin.buffer.read()
 
-    if m == 'sha256':
+    if m == 'generate':
+      pass
+
+    elif m == 'sha256':
       if len(sys.argv) == 2:
         print(v.hash(data, m).decode('utf-8'))
 
@@ -197,7 +210,7 @@ def main(m=__args(), cols=80, v=Vaulty()):
                   print('\x1b[1;31mfailed\nerror: file prohibited from being encrypted\x1b[0m', file=sys.stderr)
                   
                 else:
-                  if v.encrypt_file(f, password, cols) is None:
+                  if v.encrypt_file(f, password) is None:
                     print('\x1b[1;31mfailed\nerror: file is too big to be encrypted (max size is <2gb)\x1b[0m', file=sys.stderr)
   
                   else:

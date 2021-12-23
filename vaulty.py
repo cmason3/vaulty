@@ -31,6 +31,7 @@ __version__ = '1.1.0'
 class Vaulty():
   def __init__(self):
     self.__prefix = '$VAULTY;'
+    self.__kprefix = '$VPK;'
     self.__extension = '.vlt'
     self.__bufsize = 64 * 1024
     self.__kcache = {}
@@ -48,10 +49,15 @@ class Vaulty():
     self.__kcache[ckey] = [salt, key]
     return salt, key
 
-  def generate_keypair(self, version=b'\x41'):
+  def generate_keypair(self, version=b'\x41', armour=True):
     if version == b'\x41':
       private = X25519PrivateKey.generate()
       public = version + private.public_key().public_bytes(serialization.Encoding.Raw, serialization.PublicFormat.Raw)
+
+      if armour:
+        public = self.__kprefix.encode('utf-8') + base64.b64encode(public)
+        public = b'\n'.join([public[i:i + 80] for i in range(0, len(public), 80)]) + b'\n'
+
       return private.private_bytes(serialization.Encoding.Raw, serialization.PrivateFormat.Raw, serialization.NoEncryption()), public
   
   def encrypt(self, plaintext, password, cols=None, armour=True):
@@ -74,7 +80,7 @@ class Vaulty():
   def decrypt(self, ciphertext, password):
     try:
       if ciphertext.lstrip().startswith(self.__prefix.encode('utf-8')):
-        ciphertext = base64.b64decode(ciphertext.strip()[8:])
+        ciphertext = base64.b64decode(ciphertext.strip()[len(self.__prefix)-1:])
 
       if len(ciphertext) > 29 and ciphertext.startswith(b'\x01'):
         key = self.__derive_key(password, ciphertext[1:17])[1]
@@ -84,8 +90,11 @@ class Vaulty():
       pass
 
   def encrypt_ecc(self, plaintext, public_key, cols=None, armour=True):
+    if public_key.lstrip().startswith(self.__kprefix.encode('utf-8')):
+      public_key = base64.b64decode(public_key.strip()[len(self.__kprefix)-1:])
+
     if public_key.startswith(b'\x41'):
-      private, public = self.generate_keypair(public_key[:1])
+      private, public = self.generate_keypair(public_key[:1], False)
       salt = os.urandom(16)
   
       key = X25519PrivateKey.from_private_bytes(private).exchange(X25519PublicKey.from_public_bytes(public_key[1:]))

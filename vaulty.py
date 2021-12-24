@@ -187,77 +187,97 @@ def __args():
         return 'encrypt'
       elif m.lower() == 'decrypt'[0:len(m)]:
         return 'decrypt'
-      elif m.lower() == 'generate'[0:len(m)]:
-        return 'generate'
+      elif m.lower() == 'keygen'[0:len(m)]:
+        return 'keygen'
       elif m.lower() == 'sha256'[0:len(m)]:
         return 'sha256'
 
 def main(m=__args(), cols=80, v=Vaulty()):
   if m is not None:
-    if len(sys.argv) == 2:
-      data = sys.stdin.buffer.read()
+    if m == 'keygen':
+      homedir = os.getenv('HOME')
 
-    if m == 'generate':
-      pass
+      private_key_file = homedir + '/.vaulty/vaulty_' + getpass.getuser() + '.key'
+      private_key_file = input('Private Key (' + private_key_file + '): ') or private_key_file
+      public_key_file = private_key_file + '.pub' # replace .key with .pub
+      print('Public Key is ' + public_key_file)
 
-    elif m == 'sha256':
-      if len(sys.argv) == 2:
-        print(v.hash(data, m).decode('utf-8'))
+      # check if exists
 
-      else:
-        for f in sys.argv[2:]:
-          print(v.hash_file(f, m).decode('utf-8') + '  ' + f)
-
-    else:
-      password = getpass.getpass('Vaulty Password: ').encode('utf-8')
+      password = getpass.getpass('\nPrivate Key Password: ').encode('utf-8')
       if len(password) > 0:
-        if m == 'encrypt':
-          if password == getpass.getpass('Password Verification: ').encode('utf-8'):
-            if len(sys.argv) == 2:
-              print(v.encrypt(data, password, cols).decode('utf-8'), flush=True, end='')
-        
-            else:
-              print()
-              for f in sys.argv[2:]:
-                print('encrypting ' + f + '... ', flush=True, end='')
-  
-                if os.path.abspath(sys.argv[0]) == os.path.abspath(f):
-                  print('\x1b[1;31mfailed\nerror: file prohibited from being encrypted\x1b[0m', file=sys.stderr)
-                  
-                else:
-                  if v.encrypt_file(f, password) is None:
-                    print('\x1b[1;31mfailed\nerror: file is too big to be encrypted (max size is <2gb)\x1b[0m', file=sys.stderr)
-  
-                  else:
-                    print('\x1b[1;32mok\x1b[0m')
+        if password == getpass.getpass('Password Verification: ').encode('utf-8'):
+          private, public = v.generate_keypair()
+          private = v.encrypt(private, password, None, False)
     
-          else:
-            print('\x1b[1;31merror: password verification failed\x1b[0m', file=sys.stderr)
+        else:
+          print('\x1b[1;31merror: password verification failed\x1b[0m', file=sys.stderr)
     
-        elif m == 'decrypt':
-          if len(sys.argv) == 2:
-            plaintext = v.decrypt(data, password)
-            if plaintext is not None:
-              print(plaintext.decode('utf-8'), flush=True, end='')
-    
-            else:
-              print('\x1b[1;31merror: invalid password or data not encrypted\x1b[0m', file=sys.stderr)
-    
-          else:
-            print()
-            for f in sys.argv[2:]:
-              print('decrypting ' + f + '... ', flush=True, end='')
-              if v.decrypt_file(f, password) is None:
-                print('\x1b[1;31mfailed\nerror: invalid password or file not encrypted\x1b[0m', file=sys.stderr)
-  
-              else:
-                print('\x1b[1;32mok\x1b[0m')
-  
       else:
         print('\x1b[1;31merror: password is mandatory\x1b[0m', file=sys.stderr)
 
+    else:
+      if len(sys.argv) == 2:
+        data = sys.stdin.buffer.read()
+
+      if m == 'sha256':
+        if len(sys.argv) == 2:
+          print(v.hash(data, m).decode('utf-8'))
+  
+        else:
+          for f in sys.argv[2:]:
+            print(v.hash_file(f, m).decode('utf-8') + '  ' + f)
+  
+      else:
+        password = getpass.getpass('Vaulty Password: ').encode('utf-8')
+        if len(password) > 0:
+          if m == 'encrypt':
+            if password == getpass.getpass('Password Verification: ').encode('utf-8'):
+              if len(sys.argv) == 2:
+                print(v.encrypt(data, password, cols).decode('utf-8'), flush=True, end='')
+          
+              else:
+                print()
+                for f in sys.argv[2:]:
+                  print('encrypting ' + f + '... ', flush=True, end='')
+    
+                  if os.path.abspath(sys.argv[0]) == os.path.abspath(f):
+                    print('\x1b[1;31mfailed\nerror: file prohibited from being encrypted\x1b[0m', file=sys.stderr)
+                    
+                  else:
+                    if v.encrypt_file(f, password) is None:
+                      print('\x1b[1;31mfailed\nerror: file is too big to be encrypted (max size is <2gb)\x1b[0m', file=sys.stderr)
+    
+                    else:
+                      print('\x1b[1;32mok\x1b[0m')
+      
+            else:
+              print('\x1b[1;31merror: password verification failed\x1b[0m', file=sys.stderr)
+      
+          elif m == 'decrypt':
+            if len(sys.argv) == 2:
+              plaintext = v.decrypt(data, password)
+              if plaintext is not None:
+                print(plaintext.decode('utf-8'), flush=True, end='')
+      
+              else:
+                print('\x1b[1;31merror: invalid password or data not encrypted\x1b[0m', file=sys.stderr)
+      
+            else:
+              print()
+              for f in sys.argv[2:]:
+                print('decrypting ' + f + '... ', flush=True, end='')
+                if v.decrypt_file(f, password) is None:
+                  print('\x1b[1;31mfailed\nerror: invalid password or file not encrypted\x1b[0m', file=sys.stderr)
+    
+                else:
+                  print('\x1b[1;32mok\x1b[0m')
+    
+        else:
+          print('\x1b[1;31merror: password is mandatory\x1b[0m', file=sys.stderr)
+
   else:
-    print('usage: ' + os.path.basename(sys.argv[0]) + ' encrypt|decrypt|sha256 [file1[ file2[ ...]]]', file=sys.stderr)
+    print('usage: ' + os.path.basename(sys.argv[0]) + ' encrypt|decrypt|keygen|sha256 [file1[ file2[ ...]]]', file=sys.stderr)
 
 
 if __name__ == '__main__':

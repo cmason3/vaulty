@@ -199,9 +199,10 @@ def main(m=__args(), cols=80, v=Vaulty()):
 
       private_key_file = homedir + '/.vaulty/vaulty_' + getpass.getuser() + '.key'
       private_key_file = input('Private Key (' + private_key_file + '): ') or private_key_file
-      public_key_file = private_key_file + '.pub' # replace .key with .pub
+      public_key_file = (private_key_file[:-4] if private_key_file.endswith('.key') else private_key_file) + '.pub'
       print('Public Key is ' + public_key_file)
 
+      # protect against empty input
       # check if exists
 
       password = getpass.getpass('\nPrivate Key Password: ').encode('utf-8')

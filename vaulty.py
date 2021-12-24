@@ -195,27 +195,24 @@ def __args():
 def main(m=__args(), cols=80, v=Vaulty()):
   if m is not None:
     if m == 'keygen':
-      homedir = os.getenv('HOME')
+      private_key_file = os.getenv('HOME') + '/.vaulty/vaulty_' + getpass.getuser() + '.key'
+      private_key_file = (input('Private Key (' + private_key_file + '): ') or private_key_file).strip()
 
-      private_key_file = homedir + '/.vaulty/vaulty_' + getpass.getuser() + '.key'
-      private_key_file = input('Private Key (' + private_key_file + '): ') or private_key_file
-      public_key_file = (private_key_file[:-4] if private_key_file.endswith('.key') else private_key_file) + '.pub'
-      print('Public Key is ' + public_key_file)
+      if len(private_key_file):
+        public_key_file = (private_key_file[:-4] if private_key_file.endswith('.key') else private_key_file) + '.pub'
+        print('Public Key is ' + public_key_file)
 
-      # protect against empty input
-      # check if exists
-
-      password = getpass.getpass('\nPrivate Key Password: ').encode('utf-8')
-      if len(password) > 0:
-        if password == getpass.getpass('Password Verification: ').encode('utf-8'):
-          private, public = v.generate_keypair()
-          private = v.encrypt(private, password, None, False)
-    
+        password = getpass.getpass('\nPrivate Key Password: ').encode('utf-8')
+        if len(password) > 0:
+          if password == getpass.getpass('Password Verification: ').encode('utf-8'):
+            private, public = v.generate_keypair()
+            private = v.encrypt(private, password, None, False)
+      
+          else:
+            print('\x1b[1;31merror: password verification failed\x1b[0m', file=sys.stderr)
+      
         else:
-          print('\x1b[1;31merror: password verification failed\x1b[0m', file=sys.stderr)
-    
-      else:
-        print('\x1b[1;31merror: password is mandatory\x1b[0m', file=sys.stderr)
+          print('\x1b[1;31merror: password is mandatory\x1b[0m', file=sys.stderr)
 
     else:
       if len(sys.argv) == 2:

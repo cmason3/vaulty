@@ -60,6 +60,12 @@ class Vaulty():
 
       return private.private_bytes(serialization.Encoding.Raw, serialization.PrivateFormat.Raw, serialization.NoEncryption()), public
   
+  def public_key_info(self, public_key):
+    if public_key.lstrip().startswith(self.__kprefix.encode('utf-8')):
+      public_key = base64.b64decode(public_key.strip()[len(self.__kprefix)-1:])
+
+    return self.hash(public_key, 'sha256')
+
   def encrypt(self, plaintext, password, cols=None, armour=True):
     version = b'\x01'
     salt, key = self.__derive_key(password)
@@ -196,23 +202,37 @@ def main(m=__args(), cols=80, v=Vaulty()):
   if m is not None:
     if m == 'keygen':
       private_key_file = os.getenv('HOME') + '/.vaulty/vaulty_' + getpass.getuser() + '.key'
-      private_key_file = (input('Private Key (' + private_key_file + '): ') or private_key_file).strip()
+      private_key_file = os.path.expanduser((input('Private Key (' + private_key_file + '): ') or private_key_file).strip())
 
       if len(private_key_file):
-        public_key_file = (private_key_file[:-4] if private_key_file.endswith('.key') else private_key_file) + '.pub'
-        print('Public Key is ' + public_key_file)
+        if not os.path.isfile(private_key_file):
+          public_key_file = (private_key_file[:-4] if private_key_file.endswith('.key') else private_key_file) + '.pub'
+          print('Public Key is ' + public_key_file)
 
-        password = getpass.getpass('\nPrivate Key Password: ').encode('utf-8')
-        if len(password) > 0:
-          if password == getpass.getpass('Password Verification: ').encode('utf-8'):
-            private, public = v.generate_keypair()
-            private = v.encrypt(private, password, None, False)
+          password = getpass.getpass('\nPrivate Key Password: ').encode('utf-8')
+          if len(password) > 0:
+            if password == getpass.getpass('Password Verification: ').encode('utf-8'):
+              private, public = v.generate_keypair()
+              private = v.encrypt(private, password, None, False)
+
+              os.makedirs(os.path.dirname(private_key_file), exist_ok=True)
+
+              with open(private_key_file, 'wb') as fh:
+                fh.write(private)
+
+              with open(public_key_file, 'wb') as fh:
+                fh.write(public)
+
+              print('\nPublic Key Fingerprint is ' + v.public_key_info(public).decode('utf-8'))
+      
+            else:
+              print('\x1b[1;31merror: password verification failed\x1b[0m', file=sys.stderr)
       
           else:
-            print('\x1b[1;31merror: password verification failed\x1b[0m', file=sys.stderr)
-      
+            print('\x1b[1;31merror: password is mandatory\x1b[0m', file=sys.stderr)
+
         else:
-          print('\x1b[1;31merror: password is mandatory\x1b[0m', file=sys.stderr)
+          print('\x1b[1;31merror: private key file already exists\x1b[0m', file=sys.stderr)
 
     else:
       if len(sys.argv) == 2:

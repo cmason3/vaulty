@@ -20,8 +20,8 @@ from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.kdf.scrypt import Scrypt
 from cryptography.hazmat.primitives.ciphers.aead import ChaCha20Poly1305
-from cryptography.hazmat.primitives.asymmetric.x25519 import X25519PrivateKey
-from cryptography.hazmat.primitives.asymmetric.x25519 import X25519PublicKey
+from cryptography.hazmat.primitives.asymmetric.x448 import X448PrivateKey
+from cryptography.hazmat.primitives.asymmetric.x448 import X448PublicKey
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 from cryptography.hazmat.backends import default_backend
 from cryptography.exceptions import InvalidTag
@@ -48,23 +48,6 @@ class Vaulty():
     key = Scrypt(salt, 32, 2**16, 8, 1, default_backend()).derive(password)
     self.__kcache[ckey] = [salt, key]
     return salt, key
-
-  def generate_keypair(self, version=b'\x41', armour=True):
-    if version == b'\x41':
-      private = X25519PrivateKey.generate()
-      public = version + private.public_key().public_bytes(serialization.Encoding.Raw, serialization.PublicFormat.Raw)
-
-      if armour:
-        public = self.__kprefix.encode('utf-8') + base64.b64encode(public)
-        public = b'\n'.join([public[i:i + 80] for i in range(0, len(public), 80)]) + b'\n'
-
-      return private.private_bytes(serialization.Encoding.Raw, serialization.PrivateFormat.Raw, serialization.NoEncryption()), public
-  
-  def public_key_info(self, public_key):
-    if public_key.lstrip().startswith(self.__kprefix.encode('utf-8')):
-      public_key = base64.b64decode(public_key.strip()[len(self.__kprefix)-1:])
-
-    return self.hash(public_key, 'sha256')
 
   def encrypt(self, plaintext, password, cols=None, armour=True):
     version = b'\x01'
@@ -95,6 +78,26 @@ class Vaulty():
     except InvalidTag:
       pass
 
+  def generate_keypair(self, version=b'\x41', armour_public=True, comment=b''):
+    if version == b'\x41':
+      private = X448PrivateKey.generate()
+      public = version + private.public_key().public_bytes(serialization.Encoding.Raw, serialization.PublicFormat.Raw) + comment
+
+      if armour_public:
+        public = self.__kprefix.encode('utf-8') + base64.b64encode(public)
+        public = b'\n'.join([public[i:i + 80] for i in range(0, len(public), 80)]) + b'\n'
+
+      return private.private_bytes(serialization.Encoding.Raw, serialization.PrivateFormat.Raw, serialization.NoEncryption()), public
+  
+  def public_key_info(self, public_key):
+    if public_key.lstrip().startswith(self.__kprefix.encode('utf-8')):
+      public_key = base64.b64decode(public_key.strip()[len(self.__kprefix)-1:])
+
+    digest = hashes.Hash(hashes.SHAKE128(8))
+    digest.update(public_key)
+
+    return digest.finalize().hex(':').encode('utf-8'), public_key[57:]
+
   def encrypt_ecc(self, plaintext, public_key, cols=None, armour=True):
     if public_key.lstrip().startswith(self.__kprefix.encode('utf-8')):
       public_key = base64.b64decode(public_key.strip()[len(self.__kprefix)-1:])
@@ -103,14 +106,14 @@ class Vaulty():
       private, public = self.generate_keypair(public_key[:1], False)
       salt = os.urandom(16)
   
-      key = X25519PrivateKey.from_private_bytes(private).exchange(X25519PublicKey.from_public_bytes(public_key[1:]))
+      key = X448PrivateKey.from_private_bytes(private).exchange(X448PublicKey.from_public_bytes(public_key[1:57]))
       key = HKDF(algorithm=hashes.SHA256(), length=32, salt=salt, info=b'vaulty').derive(key)
   
       nonce = os.urandom(12)
       ciphertext = ChaCha20Poly1305(key).encrypt(nonce, plaintext, None)
   
       if armour:
-        r = self.__prefix.encode('utf-8') + base64.b64encode(public_key[:1] + salt + public[1:] + nonce + ciphertext)
+        r = self.__prefix.encode('utf-8') + base64.b64encode(public_key[:1] + salt + public[1:57] + nonce + ciphertext)
   
         if cols is not None:
           r = b'\n'.join([r[i:i + cols] for i in range(0, len(r), cols)])
@@ -118,17 +121,17 @@ class Vaulty():
         return r + b'\n'
   
       else:
-        return public_key[:1] + salt + public[1:] + nonce + ciphertext
+        return public_key[:1] + salt + public[1:57] + nonce + ciphertext
 
   def decrypt_ecc(self, ciphertext, private_key):
     try:
       if ciphertext.lstrip().startswith(self.__prefix.encode('utf-8')):
         ciphertext = base64.b64decode(ciphertext.strip()[8:])
 
-      if len(ciphertext) > 61 and ciphertext.startswith(b'\x41'):
-        key = X25519PrivateKey.from_private_bytes(private_key).exchange(X25519PublicKey.from_public_bytes(ciphertext[17:49]))
+      if len(ciphertext) > 85 and ciphertext.startswith(b'\x41'):
+        key = X448PrivateKey.from_private_bytes(private_key).exchange(X448PublicKey.from_public_bytes(ciphertext[17:73]))
         key = HKDF(algorithm=hashes.SHA256(), length=32, salt=ciphertext[1:17], info=b'vaulty').derive(key)
-        return ChaCha20Poly1305(key).decrypt(ciphertext[49:61], ciphertext[61:], None)
+        return ChaCha20Poly1305(key).decrypt(ciphertext[73:85], ciphertext[85:], None)
 
     except InvalidTag:
       pass
@@ -209,27 +212,36 @@ def main(m=__args(), cols=80, v=Vaulty()):
           public_key_file = (private_key_file[:-4] if private_key_file.endswith('.key') else private_key_file) + '.pub'
           print('Public Key is ' + public_key_file)
 
-          password = getpass.getpass('\nPrivate Key Password: ').encode('utf-8')
-          if len(password) > 0:
-            if password == getpass.getpass('Password Verification: ').encode('utf-8'):
-              private, public = v.generate_keypair()
-              private = v.encrypt(private, password, None, False)
-
-              os.makedirs(os.path.dirname(private_key_file), exist_ok=True)
-
-              with open(private_key_file, 'wb') as fh:
-                fh.write(private)
-
-              with open(public_key_file, 'wb') as fh:
-                fh.write(public)
-
-              print('\nPublic Key Fingerprint is ' + v.public_key_info(public).decode('utf-8'))
-      
-            else:
-              print('\x1b[1;31merror: password verification failed\x1b[0m', file=sys.stderr)
-      
-          else:
-            print('\x1b[1;31merror: password is mandatory\x1b[0m', file=sys.stderr)
+          fullname = input('\nFull Name: ').strip()
+          if len(fullname):
+            email = input('email Address: ').strip()
+            if len(email):
+              comment = fullname + ' <' + email + '>'
+              password = getpass.getpass('\nPrivate Key Password: ').encode('utf-8')
+              if len(password) > 0:
+                if password == getpass.getpass('Password Verification: ').encode('utf-8'):
+                  private, public = v.generate_keypair(comment=comment.encode('utf-8'))
+                  private = v.encrypt(private, password, cols, True)
+    
+                  if len(os.path.dirname(private_key_file)):
+                    os.makedirs(os.path.dirname(private_key_file), exist_ok=True)
+    
+                  with open(os.open(private_key_file, os.O_CREAT|os.O_WRONLY, 0o600), 'wb') as fh:
+                    fh.write(private)
+    
+                  with open(public_key_file, 'wb') as fh:
+                    fh.write(public)
+    
+                  pkinfo = v.public_key_info(public)
+                  print('\nPublic Key // ' + pkinfo[1].decode('utf-8'))
+                  print('Public Key Fingerprint is ' + pkinfo[0].decode('utf-8'))
+                  print('\x1b[1;32mok\x1b[0m')
+          
+                else:
+                  print('\x1b[1;31merror: password verification failed\x1b[0m', file=sys.stderr)
+          
+              else:
+                print('\x1b[1;31merror: password is mandatory\x1b[0m', file=sys.stderr)
 
         else:
           print('\x1b[1;31merror: private key file already exists\x1b[0m', file=sys.stderr)
@@ -295,7 +307,11 @@ def main(m=__args(), cols=80, v=Vaulty()):
           print('\x1b[1;31merror: password is mandatory\x1b[0m', file=sys.stderr)
 
   else:
-    print('usage: ' + os.path.basename(sys.argv[0]) + ' encrypt|decrypt|keygen|sha256 [file1[ file2[ ...]]]', file=sys.stderr)
+    print('usage:', file=sys.stderr)
+    print('  ' + os.path.basename(sys.argv[0]) + ' encrypt [-k <public key>] [file1[ file2[ ...]]]', file=sys.stderr)
+    print('  ' + os.path.basename(sys.argv[0]) + ' decrypt [-k <private key>] [file1[ file2[ ...]]]', file=sys.stderr)
+    print('  ' + os.path.basename(sys.argv[0]) + ' sha256 [file1[ file2[ ...]]]', file=sys.stderr)
+    print('  ' + os.path.basename(sys.argv[0]) + ' keygen', file=sys.stderr)
 
 
 if __name__ == '__main__':

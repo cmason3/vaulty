@@ -188,52 +188,54 @@ class Vaulty():
       return digest.finalize().hex().encode('utf-8')
 
 
-def __args(k=None):
-  if len(sys.argv) >= 2:
-    m = sys.argv[1].lower()
-
-    if m.lower() == 'encrypt'[0:len(m)]: m = 'encrypt'
-    elif m.lower() == 'decrypt'[0:len(m)]: m = 'decrypt'
-    elif m.lower() == 'keygen'[0:len(m)]: m = 'keygen'
-    elif m.lower() == 'sha256'[0:len(m)]: m = 'sha256'
-
-    if m == 'encrypt' or m == 'decrypt':
-      if len(sys.argv) >= 4 and sys.argv[2] == '-k':
-        if os.path.isfile(sys.argv[3]):
-          with open(sys.argv[3], 'rb') as fh:
-            k = fh.read()
-
-          del sys.argv[3], sys.argv[2]
-
-    if len(sys.argv) == 2 or all([os.path.isfile(f) for f in sys.argv[2:]]):
-      return m, k
-
-def __encrypt_files(v, files, pdata, method):
-  print()
-  for f in files:
-    print('encrypting ' + f + '... ', flush=True, end='')
-    
-    if os.path.abspath(sys.argv[0]) == os.path.abspath(f):
-      print('\x1b[1;31mfailed\nerror: file prohibited from being encrypted\x1b[0m', file=sys.stderr)
+def main(cols=80, v=Vaulty()):
+  def args(k=None):
+    if len(sys.argv) >= 2:
+      m = sys.argv[1].lower()
+  
+      if m.lower() == 'encrypt'[0:len(m)]: m = 'encrypt'
+      elif m.lower() == 'decrypt'[0:len(m)]: m = 'decrypt'
+      elif m.lower() == 'keygen'[0:len(m)]: m = 'keygen'
+      elif m.lower() == 'sha256'[0:len(m)]: m = 'sha256'
+  
+      if m == 'encrypt' or m == 'decrypt':
+        if len(sys.argv) >= 4 and sys.argv[2] == '-k':
+          if os.path.isfile(sys.argv[3]):
+            with open(sys.argv[3], 'rb') as fh:
+              k = fh.read()
+  
+            del sys.argv[3], sys.argv[2]
+  
+      if len(sys.argv) == 2 or all([os.path.isfile(f) for f in sys.argv[2:]]):
+        return m, k
+  
+  def encrypt_files(v, files, pdata, method):
+    print()
+    for f in files:
+      print('encrypting ' + f + '... ', flush=True, end='')
       
-    else:
+      if os.path.abspath(sys.argv[0]) == os.path.abspath(f):
+        print('\x1b[1;31mfailed\nerror: file prohibited from being encrypted\x1b[0m', file=sys.stderr)
+        
+      else:
+        if getattr(v, method)(f, pdata) is None:
+          print('\x1b[1;31mfailed\nerror: file is too big to be encrypted (max size is <2gb)\x1b[0m', file=sys.stderr)
+      
+        else:
+          print('\x1b[1;32mok\x1b[0m')
+  
+  def decrypt_files(v, files, pdata, method):
+    print()
+    for f in files:
+      print('decrypting ' + f + '... ', flush=True, end='')
       if getattr(v, method)(f, pdata) is None:
-        print('\x1b[1;31mfailed\nerror: file is too big to be encrypted (max size is <2gb)\x1b[0m', file=sys.stderr)
-    
+        print('\x1b[1;31mfailed\nerror: invalid ' + ('private key' if 'ecc' in method else 'password') + ' or file not encrypted\x1b[0m', file=sys.stderr)
+      
       else:
         print('\x1b[1;32mok\x1b[0m')
 
-def __decrypt_files(v, files, pdata, method):
-  print()
-  for f in files:
-    print('decrypting ' + f + '... ', flush=True, end='')
-    if getattr(v, method)(f, pdata) is None:
-      print('\x1b[1;31mfailed\nerror: invalid ' + ('private key' if 'ecc' in method else 'password') + ' or file not encrypted\x1b[0m', file=sys.stderr)
-    
-    else:
-      print('\x1b[1;32mok\x1b[0m')
+  m = args()
 
-def main(m=__args(), cols=80, v=Vaulty()):
   if m is not None:
     if m[0] == 'keygen':
       private_key_file = os.getenv('HOME') + '/.vaulty/vaulty_' + getpass.getuser() + '.key'
@@ -299,7 +301,7 @@ def main(m=__args(), cols=80, v=Vaulty()):
                 print(v.encrypt(data, password, cols).decode('utf-8'), flush=True, end='')
           
               else:
-                __encrypt_files(v, sys.argv[2:], password, 'encrypt_file')
+                encrypt_files(v, sys.argv[2:], password, 'encrypt_file')
       
             else:
               print('\x1b[1;31merror: password verification failed\x1b[0m', file=sys.stderr)
@@ -314,7 +316,7 @@ def main(m=__args(), cols=80, v=Vaulty()):
                 print('\x1b[1;31merror: invalid password or data not encrypted\x1b[0m', file=sys.stderr)
       
             else:
-              __decrypt_files(v, sys.argv[2:], password, 'decrypt_file')
+              decrypt_files(v, sys.argv[2:], password, 'decrypt_file')
     
         else:
           print('\x1b[1;31merror: password is mandatory\x1b[0m', file=sys.stderr)
@@ -329,7 +331,7 @@ def main(m=__args(), cols=80, v=Vaulty()):
             print(v.encrypt_ecc(data, m[1], cols).decode('utf-8'), flush=True, end='')
 
           else:
-            __encrypt_files(v, sys.argv[2:], m[1], 'encrypt_file_ecc')
+            encrypt_files(v, sys.argv[2:], m[1], 'encrypt_file_ecc')
 
         elif m[0] == 'decrypt':
           password = getpass.getpass('Private Key Password: ').encode('utf-8')
@@ -345,7 +347,7 @@ def main(m=__args(), cols=80, v=Vaulty()):
                   print('\x1b[1;31merror: invalid private key or data not encrypted\x1b[0m', file=sys.stderr)
 
               else:
-                __decrypt_files(v, sys.argv[2:], private, 'decrypt_file_ecc')
+                decrypt_files(v, sys.argv[2:], private, 'decrypt_file_ecc')
 
             else:
               print('\x1b[1;31merror: invalid private key password\x1b[0m', file=sys.stderr)

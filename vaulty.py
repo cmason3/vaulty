@@ -228,7 +228,7 @@ def __decrypt_files(v, files, pdata, method):
   for f in files:
     print('decrypting ' + f + '... ', flush=True, end='')
     if getattr(v, method)(f, pdata) is None:
-      print('\x1b[1;31mfailed\nerror: invalid password or file not encrypted\x1b[0m', file=sys.stderr)
+      print('\x1b[1;31mfailed\nerror: invalid ' + ('private key' if 'ecc' in method else 'password') + ' or file not encrypted\x1b[0m', file=sys.stderr)
     
     else:
       print('\x1b[1;32mok\x1b[0m')

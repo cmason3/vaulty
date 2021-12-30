@@ -9,7 +9,7 @@ Vaulty is an extremely lightweight encryption/decryption tool which uses ChaCha2
 
 If encrypting `stdin` then the output will be Base64 encoded whereas if encrypting a file then it won't and it will have a `.vlt` extension added to indicate it has been encrypted.
 
-It relies on the [cryptography](https://pypi.org/project/cryptography/) Python module to provide the routines for ChaCha20-Poly1305 and Scrypt.
+It relies on the [cryptography](https://pypi.org/project/cryptography/) Python module to provide the routines for ChaCha20-Poly1305, Scrypt and ECDH with X448.
  
 #### Installation
 

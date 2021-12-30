@@ -124,8 +124,9 @@ class Vaulty():
     if public_key.startswith(b'\x41'):
       digest = hashes.Hash(hashes.SHAKE128(8))
       digest.update(public_key)
-
-      return digest.finalize().hex(':').encode('utf-8'), public_key[57:]
+      fprint = digest.finalize().hex()
+      fprint = ':'.join([fprint[i:i + 4] for i in range(0, len(fprint), 4)])
+      return fprint.encode('utf-8'), public_key[57:]
 
     else:
       raise Exception('public key required')

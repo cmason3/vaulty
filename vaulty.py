@@ -49,6 +49,31 @@ class Vaulty():
     self.__kcache[ckey] = [salt, key]
     return salt, key
 
+  def __encrypt_file(self, filepath, pdata, method):
+    if os.path.getsize(filepath) < 2**31:
+      with open(filepath, 'rb') as fh:
+        ciphertext = getattr(self, method)(fh.read(), pdata, None, False)
+
+      if ciphertext is not None:
+        with open(filepath, 'wb') as fh:
+          fh.write(ciphertext)
+
+        os.rename(filepath, filepath + self.__extension)
+        return True
+
+  def __decrypt_file(self, filepath, pdata, method):
+    with open(filepath, 'rb') as fh:
+      plaintext = getattr(self, method)(fh.read(), pdata)
+
+    if plaintext is not None:
+      with open(filepath, 'wb') as fh:
+        fh.write(plaintext)
+
+      if filepath.endswith(self.__extension):
+        os.rename(filepath, filepath[:-len(self.__extension)])
+
+      return True
+
   def encrypt(self, plaintext, password, cols=None, armour=True):
     version = b'\x01'
     salt, key = self.__derive_key(password)
@@ -71,9 +96,12 @@ class Vaulty():
       if ciphertext.lstrip().startswith(self.__prefix.encode('utf-8')):
         ciphertext = base64.b64decode(ciphertext.strip()[len(self.__prefix)-1:])
 
-      if len(ciphertext) > 29 and ciphertext.startswith(b'\x01'):
+      if ciphertext.startswith(b'\x01') and len(ciphertext) > 29:
         key = self.__derive_key(password, ciphertext[1:17])[1]
         return ChaCha20Poly1305(key).decrypt(ciphertext[17:29], ciphertext[29:], None)
+
+      elif ciphertext.startswith(b'\x41'):
+        raise Exception('wrong method - public key based encryption')
 
     except InvalidTag:
       pass
@@ -93,10 +121,14 @@ class Vaulty():
     if public_key.lstrip().startswith(self.__kprefix.encode('utf-8')):
       public_key = base64.b64decode(public_key.strip()[len(self.__kprefix)-1:])
 
-    digest = hashes.Hash(hashes.SHAKE128(8))
-    digest.update(public_key)
+    if public_key.startswith(b'\x41'):
+      digest = hashes.Hash(hashes.SHAKE128(8))
+      digest.update(public_key)
 
-    return digest.finalize().hex(':').encode('utf-8'), public_key[57:]
+      return digest.finalize().hex(':').encode('utf-8'), public_key[57:]
+
+    else:
+      raise Exception('public key required')
 
   def encrypt_ecc(self, plaintext, public_key, cols=None, armour=True):
     if public_key.lstrip().startswith(self.__kprefix.encode('utf-8')):
@@ -123,15 +155,24 @@ class Vaulty():
       else:
         return public_key[:1] + salt + public[1:57] + nonce + ciphertext
 
+    else:
+      raise Exception('public key required')
+
   def decrypt_ecc(self, ciphertext, private_key):
     try:
       if ciphertext.lstrip().startswith(self.__prefix.encode('utf-8')):
         ciphertext = base64.b64decode(ciphertext.strip()[8:])
 
-      if len(ciphertext) > 85 and ciphertext.startswith(b'\x41'):
+      if private_key.startswith(b'\x41'):
+        raise Exception('private key required')
+
+      if ciphertext.startswith(b'\x41') and len(ciphertext) > 85:
         key = X448PrivateKey.from_private_bytes(private_key).exchange(X448PublicKey.from_public_bytes(ciphertext[17:73]))
         key = HKDF(algorithm=hashes.SHA256(), length=32, salt=ciphertext[1:17], info=b'vaulty').derive(key)
         return ChaCha20Poly1305(key).decrypt(ciphertext[73:85], ciphertext[85:], None)
+
+      elif ciphertext.startswith(b'\x01'):
+        raise Exception('wrong method - password based encryption')
 
     except InvalidTag:
       pass
@@ -140,31 +181,6 @@ class Vaulty():
     digest = hashes.Hash(getattr(hashes, algorithm.upper())())
     digest.update(data)
     return digest.finalize().hex().encode('utf-8')
-
-  def __encrypt_file(self, filepath, pdata, method):
-    if os.path.getsize(filepath) < 2**31:
-      with open(filepath, 'rb') as fh:
-        ciphertext = getattr(self, method)(fh.read(), pdata, None, False)
-
-      if ciphertext is not None:
-        with open(filepath, 'wb') as fh:
-          fh.write(ciphertext)
-
-        os.rename(filepath, filepath + self.__extension)
-        return True
-
-  def __decrypt_file(self, filepath, pdata, method):
-    with open(filepath, 'rb') as fh:
-      plaintext = getattr(self, method)(fh.read(), pdata)
-
-    if plaintext is not None:
-      with open(filepath, 'wb') as fh:
-        fh.write(plaintext)
-
-      if filepath.endswith(self.__extension):
-        os.rename(filepath, filepath[:-len(self.__extension)])
-
-      return True
 
   def encrypt_file(self, filepath, password):
     return self.__encrypt_file(filepath, password, 'encrypt')
@@ -218,21 +234,29 @@ def main(cols=80, v=Vaulty()):
         print('\x1b[1;31mfailed\nerror: file prohibited from being encrypted\x1b[0m', file=sys.stderr)
         
       else:
-        if getattr(v, method)(f, pdata) is None:
-          print('\x1b[1;31mfailed\nerror: file is too big to be encrypted (max size is <2gb)\x1b[0m', file=sys.stderr)
+        try:
+          if getattr(v, method)(f, pdata) is None:
+            print('\x1b[1;31mfailed\nerror: file is too big to be encrypted (max size is <2gb)\x1b[0m', file=sys.stderr)
       
-        else:
-          print('\x1b[1;32mok\x1b[0m')
+          else:
+            print('\x1b[1;32mok\x1b[0m')
+
+        except Exception as e:
+          print('\x1b[1;31mfailed\nerror: ' + str(e) + '\x1b[0m', file=sys.stderr)
   
   def decrypt_files(v, files, pdata, method):
     print()
     for f in files:
       print('decrypting ' + f + '... ', flush=True, end='')
-      if getattr(v, method)(f, pdata) is None:
-        print('\x1b[1;31mfailed\nerror: invalid ' + ('private key' if 'ecc' in method else 'password') + ' or file not encrypted\x1b[0m', file=sys.stderr)
+      try:
+        if getattr(v, method)(f, pdata) is None:
+          print('\x1b[1;31mfailed\nerror: invalid ' + ('private key' if 'ecc' in method else 'password') + ' or file not encrypted\x1b[0m', file=sys.stderr)
       
-      else:
-        print('\x1b[1;32mok\x1b[0m')
+        else:
+          print('\x1b[1;32mok\x1b[0m')
+
+      except Exception as e:
+        print('\x1b[1;31mfailed\nerror: ' + str(e) + '\x1b[0m', file=sys.stderr)
 
   m = args()
 
@@ -298,7 +322,11 @@ def main(cols=80, v=Vaulty()):
           if m[0] == 'encrypt':
             if password == getpass.getpass('Password Verification: ').encode('utf-8'):
               if len(sys.argv) == 2:
-                print(v.encrypt(data, password, cols).decode('utf-8'), flush=True, end='')
+                try:
+                  print(v.encrypt(data, password, cols).decode('utf-8'), flush=True, end='')
+
+                except Exception as e:
+                  print('\x1b[1;31merror: ' + str(e) + '\x1b[0m', file=sys.stderr)
           
               else:
                 encrypt_files(v, sys.argv[2:], password, 'encrypt_file')
@@ -308,12 +336,16 @@ def main(cols=80, v=Vaulty()):
       
           elif m[0] == 'decrypt':
             if len(sys.argv) == 2:
-              plaintext = v.decrypt(data, password)
-              if plaintext is not None:
-                print(plaintext.decode('utf-8'), flush=True, end='')
-      
-              else:
-                print('\x1b[1;31merror: invalid password or data not encrypted\x1b[0m', file=sys.stderr)
+              try:
+                plaintext = v.decrypt(data, password)
+                if plaintext is not None:
+                  print(plaintext.decode('utf-8'), flush=True, end='')
+
+                else:
+                  print('\x1b[1;31merror: invalid password or data not encrypted\x1b[0m', file=sys.stderr)
+
+              except Exception as e:
+                print('\x1b[1;31merror: ' + str(e) + '\x1b[0m', file=sys.stderr)
       
             else:
               decrypt_files(v, sys.argv[2:], password, 'decrypt_file')
@@ -323,15 +355,20 @@ def main(cols=80, v=Vaulty()):
 
       else:
         if m[0] == 'encrypt':
-          pkinfo = v.public_key_info(m[1])
-          print('Public Key // ' + pkinfo[1].decode('utf-8'), file=sys.stderr)
-          print('Public Key Fingerprint is ' + pkinfo[0].decode('utf-8'), file=sys.stderr)
+          try:
+            pkinfo = v.public_key_info(m[1])
+            print('Public Key // ' + pkinfo[1].decode('utf-8'), file=sys.stderr)
+            print('Public Key Fingerprint is ' + pkinfo[0].decode('utf-8'), file=sys.stderr)
 
-          if len(sys.argv) == 2:
-            print(v.encrypt_ecc(data, m[1], cols).decode('utf-8'), flush=True, end='')
+            if len(sys.argv) == 2:
+              print(file=sys.stderr)
+              print(v.encrypt_ecc(data, m[1], cols).decode('utf-8'), flush=True, end='')
 
-          else:
-            encrypt_files(v, sys.argv[2:], m[1], 'encrypt_file_ecc')
+            else:
+              encrypt_files(v, sys.argv[2:], m[1], 'encrypt_file_ecc')
+
+          except Exception as e:
+            print('\x1b[1;31merror: ' + str(e) + '\x1b[0m', file=sys.stderr)
 
         elif m[0] == 'decrypt':
           password = getpass.getpass('Private Key Password: ').encode('utf-8')
@@ -339,18 +376,22 @@ def main(cols=80, v=Vaulty()):
             private = v.decrypt(m[1], password)
             if private is not None:
               if len(sys.argv) == 2:
-                plaintext = v.decrypt_ecc(data, private)
-                if plaintext is not None:
-                  print(plaintext.decode('utf-8'), flush=True, end='')
+                try:
+                  plaintext = v.decrypt_ecc(data, private)
+                  if plaintext is not None:
+                    print(plaintext.decode('utf-8'), flush=True, end='')
 
-                else:
-                  print('\x1b[1;31merror: invalid private key or data not encrypted\x1b[0m', file=sys.stderr)
+                  else:
+                    print('\x1b[1;31merror: invalid private key or data not encrypted\x1b[0m', file=sys.stderr)
+
+                except Exception as e:
+                  print('\x1b[1;31merror: ' + str(e) + '\x1b[0m', file=sys.stderr)
 
               else:
                 decrypt_files(v, sys.argv[2:], private, 'decrypt_file_ecc')
 
             else:
-              print('\x1b[1;31merror: invalid private key password\x1b[0m', file=sys.stderr)
+              print('\x1b[1;31merror: invalid private key password or key not private\x1b[0m', file=sys.stderr)
 
           else:
             print('\x1b[1;31merror: password is mandatory\x1b[0m', file=sys.stderr)

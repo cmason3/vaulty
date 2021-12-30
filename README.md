@@ -15,7 +15,6 @@ It relies on the [cryptography](https://pypi.org/project/cryptography/) Python m
 
 ```
 python3 -m pip install --upgrade --user pyvaulty
-
 ```
 
 #### Vaulty Usage

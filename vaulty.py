@@ -415,11 +415,11 @@ def main(cols=80, v=Vaulty()):
     print('Vaulty v' + __version__, file=sys.stderr)
     print('https://github.com/cmason3/vaulty\n', file=sys.stderr)
     print('Usage:', file=sys.stderr)
+    print('  ' + os.path.basename(sys.argv[0]) + ' keygen', file=sys.stderr)
+    print('  ' + os.path.basename(sys.argv[0]) + ' keyinfo <public key>', file=sys.stderr)
     print('  ' + os.path.basename(sys.argv[0]) + ' encrypt [-k <public key>] [file1[ file2[ ...]]]', file=sys.stderr)
     print('  ' + os.path.basename(sys.argv[0]) + ' decrypt [-k <private key>] [file1[ file2[ ...]]]', file=sys.stderr)
     print('  ' + os.path.basename(sys.argv[0]) + ' sha256 [file1[ file2[ ...]]]', file=sys.stderr)
-    print('  ' + os.path.basename(sys.argv[0]) + ' keyinfo <public key>', file=sys.stderr)
-    print('  ' + os.path.basename(sys.argv[0]) + ' keygen', file=sys.stderr)
 
 
 if __name__ == '__main__':

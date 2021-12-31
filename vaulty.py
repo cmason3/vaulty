@@ -239,19 +239,15 @@ def main(cols=80, v=Vaulty()):
     for f in files:
       print('encrypting ' + f + '... ', flush=True, end='')
       
-      if os.path.abspath(sys.argv[0]) == os.path.abspath(f):
-        print('\x1b[1;31mfailed\nerror: file prohibited from being encrypted\x1b[0m', file=sys.stderr)
-        
-      else:
-        try:
-          if getattr(v, method)(f, pdata) is None:
-            print('\x1b[1;31mfailed\nerror: file is too big to be encrypted (max size is <2gb)\x1b[0m', file=sys.stderr)
+      try:
+        if getattr(v, method)(f, pdata) is None:
+          print('\x1b[1;31mfailed\nerror: file is too big to be encrypted (max size is <2gb)\x1b[0m', file=sys.stderr)
       
-          else:
-            print('\x1b[1;32mok\x1b[0m')
+        else:
+          print('\x1b[1;32mok\x1b[0m')
 
-        except Exception as e:
-          print('\x1b[1;31mfailed\nerror: ' + str(e) + '\x1b[0m', file=sys.stderr)
+      except Exception as e:
+        print('\x1b[1;31mfailed\nerror: ' + str(e) + '\x1b[0m', file=sys.stderr)
   
   def decrypt_files(v, files, pdata, method):
     print()

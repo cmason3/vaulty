@@ -24,6 +24,7 @@ vaulty ...
   encrypt [-k <public key>] [file1[ file2[ ...]]]
   decrypt [-k <private key>] [file1[ file2[ ...]]]
   sha256 [file1[ file2[ ...]]]
+  keyinfo <public key>
   keygen
 ```
 

@@ -233,7 +233,9 @@ def main(cols=80, v=Vaulty()):
           return m, k
   
   def encrypt_files(v, files, pdata, method):
-    print()
+    if 'ecc' not in method:
+      print()
+
     for f in files:
       print('encrypting ' + f + '... ', flush=True, end='')
       

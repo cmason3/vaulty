@@ -94,7 +94,7 @@ class Vaulty():
   def decrypt(self, ciphertext, password):
     try:
       if ciphertext.lstrip().startswith(self.__prefix.encode('utf-8')):
-        ciphertext = base64.b64decode(ciphertext.strip()[len(self.__prefix)-1:])
+        ciphertext = base64.b64decode(ciphertext.strip()[len(self.__prefix):])
 
       if ciphertext.startswith(b'\x01') and len(ciphertext) > 29:
         key = self.__derive_key(password, ciphertext[1:17])[1]
@@ -119,21 +119,18 @@ class Vaulty():
   
   def public_key_info(self, public_key):
     if public_key.lstrip().startswith(self.__kprefix.encode('utf-8')):
-      public_key = base64.b64decode(public_key.strip()[len(self.__kprefix)-1:])
+      public_key = base64.b64decode(public_key.strip()[len(self.__kprefix):])
 
     if public_key.startswith(b'\x41'):
       digest = hashes.Hash(hashes.SHAKE128(8))
       digest.update(public_key)
       fprint = digest.finalize().hex()
       fprint = ':'.join([fprint[i:i + 4] for i in range(0, len(fprint), 4)])
-      return fprint.encode('utf-8'), public_key[57:]
-
-    else:
-      raise Exception('public key required')
+      return fprint.encode('utf-8'), public_key[57:], b'ECDH/X448'
 
   def encrypt_ecc(self, plaintext, public_key, cols=None, armour=True):
     if public_key.lstrip().startswith(self.__kprefix.encode('utf-8')):
-      public_key = base64.b64decode(public_key.strip()[len(self.__kprefix)-1:])
+      public_key = base64.b64decode(public_key.strip()[len(self.__kprefix):])
 
     if public_key.startswith(b'\x41'):
       private, public = self.generate_keypair(public_key[:1], False)
@@ -212,19 +209,28 @@ def main(cols=80, v=Vaulty()):
   
       if m.lower() == 'encrypt'[0:len(m)]: m = 'encrypt'
       elif m.lower() == 'decrypt'[0:len(m)]: m = 'decrypt'
-      elif m.lower() == 'keygen'[0:len(m)]: m = 'keygen'
+      elif m.lower() == 'keygen'[0:len(m)] and len(m) > 3: m = 'keygen'
+      elif m.lower() == 'keyinfo'[0:len(m)] and len(m) > 3: m = 'keyinfo'
       elif m.lower() == 'sha256'[0:len(m)]: m = 'sha256'
+      else: return None
   
-      if m == 'encrypt' or m == 'decrypt':
-        if len(sys.argv) >= 4 and sys.argv[2] == '-k':
-          if os.path.isfile(sys.argv[3]):
-            with open(sys.argv[3], 'rb') as fh:
+      if m == 'keyinfo':
+        if len(sys.argv) == 3:
+          if os.path.isfile(sys.argv[2]):
+            with open(sys.argv[2], 'rb') as fh:
               k = fh.read()
+              return m, k
+      
+      else:
+        if m == 'encrypt' or m == 'decrypt':
+          if len(sys.argv) >= 4 and sys.argv[2] == '-k':
+            if os.path.isfile(sys.argv[3]):
+              with open(sys.argv[3], 'rb') as fh:
+                k = fh.read()
+                del sys.argv[3], sys.argv[2]
   
-            del sys.argv[3], sys.argv[2]
-  
-      if len(sys.argv) == 2 or all([os.path.isfile(f) for f in sys.argv[2:]]):
-        return m, k
+        if len(sys.argv) == 2 or all([os.path.isfile(f) for f in sys.argv[2:]]):
+          return m, k
   
   def encrypt_files(v, files, pdata, method):
     print()
@@ -292,8 +298,9 @@ def main(cols=80, v=Vaulty()):
                     fh.write(public)
     
                   pkinfo = v.public_key_info(public)
-                  print('\nPublic Key // ' + pkinfo[1].decode('utf-8'))
+                  print('\nPublic Key is "' + pkinfo[1].decode('utf-8') + '"')
                   print('Public Key Fingerprint is ' + pkinfo[0].decode('utf-8'))
+                  print('Public Key Algorithm is ' + pkinfo[2].decode('utf-8'))
                   print('\x1b[1;32mok\x1b[0m')
           
                 else:
@@ -304,6 +311,16 @@ def main(cols=80, v=Vaulty()):
 
         else:
           print('\x1b[1;31merror: private key file already exists\x1b[0m', file=sys.stderr)
+
+    elif m[0] == 'keyinfo':
+      pkinfo = v.public_key_info(m[1])
+      if pkinfo is not None:
+        print('Public Key is "' + pkinfo[1].decode('utf-8') + '"')
+        print('Public Key Fingerprint is ' + pkinfo[0].decode('utf-8'))
+        print('Public Key Algorithm is ' + pkinfo[2].decode('utf-8'))
+
+      else:
+        print('\x1b[1;31merror: public key required\x1b[0m', file=sys.stderr)
 
     else:
       if len(sys.argv) == 2:
@@ -316,7 +333,7 @@ def main(cols=80, v=Vaulty()):
         else:
           for f in sys.argv[2:]:
             print(v.hash_file(f, m[0]).decode('utf-8') + '  ' + f)
-  
+
       elif m[1] is None:
         password = getpass.getpass('Vaulty Password: ').encode('utf-8')
         if len(password) > 0:
@@ -356,20 +373,15 @@ def main(cols=80, v=Vaulty()):
 
       else:
         if m[0] == 'encrypt':
-          try:
-            pkinfo = v.public_key_info(m[1])
-            print('Public Key // ' + pkinfo[1].decode('utf-8'), file=sys.stderr)
-            print('Public Key Fingerprint is ' + pkinfo[0].decode('utf-8'), file=sys.stderr)
-
-            if len(sys.argv) == 2:
-              print(file=sys.stderr)
+          if len(sys.argv) == 2:
+            try:
               print(v.encrypt_ecc(data, m[1], cols).decode('utf-8'), flush=True, end='')
 
-            else:
-              encrypt_files(v, sys.argv[2:], m[1], 'encrypt_file_ecc')
+            except Exception as e:
+              print('\x1b[1;31merror: ' + str(e) + '\x1b[0m', file=sys.stderr)
 
-          except Exception as e:
-            print('\x1b[1;31merror: ' + str(e) + '\x1b[0m', file=sys.stderr)
+          else:
+            encrypt_files(v, sys.argv[2:], m[1], 'encrypt_file_ecc')
 
         elif m[0] == 'decrypt':
           password = getpass.getpass('Private Key Password: ').encode('utf-8')
@@ -398,10 +410,13 @@ def main(cols=80, v=Vaulty()):
             print('\x1b[1;31merror: password is mandatory\x1b[0m', file=sys.stderr)
 
   else:
-    print('usage:', file=sys.stderr)
+    print('Vaulty v' + __version__, file=sys.stderr)
+    print('https://github.com/cmason3/vaulty\n', file=sys.stderr)
+    print('Usage:', file=sys.stderr)
     print('  ' + os.path.basename(sys.argv[0]) + ' encrypt [-k <public key>] [file1[ file2[ ...]]]', file=sys.stderr)
     print('  ' + os.path.basename(sys.argv[0]) + ' decrypt [-k <private key>] [file1[ file2[ ...]]]', file=sys.stderr)
     print('  ' + os.path.basename(sys.argv[0]) + ' sha256 [file1[ file2[ ...]]]', file=sys.stderr)
+    print('  ' + os.path.basename(sys.argv[0]) + ' keyinfo <public key>', file=sys.stderr)
     print('  ' + os.path.basename(sys.argv[0]) + ' keygen', file=sys.stderr)
 
 

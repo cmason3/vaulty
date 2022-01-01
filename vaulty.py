@@ -229,39 +229,53 @@ def main(cols=80, v=Vaulty()):
                 k = fh.read()
                 del sys.argv[3], sys.argv[2]
   
-        if len(sys.argv) == 2 or all([os.path.isfile(f) for f in sys.argv[2:]]):
-          return m, k
+        return m, k
   
   def encrypt_files(v, files, pdata, method):
     if 'ecc' not in method:
       print()
 
     for f in files:
-      print('encrypting ' + f + '... ', flush=True, end='')
+      if os.path.isfile(f):
+        print('encrypting ' + f + '... ', flush=True, end='')
       
-      try:
-        if getattr(v, method)(f, pdata) is None:
-          print('\x1b[1;31mfailed\nerror: file is too big to be encrypted (max size is <2gb)\x1b[0m', file=sys.stderr)
+        try:
+          if getattr(v, method)(f, pdata) is None:
+            print('\x1b[1;31mfailed\nerror: file is too big to be encrypted (max size is <2gb)\x1b[0m', file=sys.stderr)
       
-        else:
-          print('\x1b[1;32mok\x1b[0m')
+          else:
+            print('\x1b[1;32mok\x1b[0m')
 
-      except Exception as e:
-        print('\x1b[1;31mfailed\nerror: ' + str(e) + '\x1b[0m', file=sys.stderr)
+        except Exception as e:
+          print('\x1b[1;31mfailed\nerror: ' + str(e) + '\x1b[0m', file=sys.stderr)
+
+      elif not os.path.exists(f):
+        print('encrypting ' + f + '... \x1b[1;31mnot found\x1b[0m')
+
+      else:
+        print('encrypting ' + f + '... \x1b[1;33munsupported\x1b[0m')
   
   def decrypt_files(v, files, pdata, method):
     print()
     for f in files:
-      print('decrypting ' + f + '... ', flush=True, end='')
-      try:
-        if getattr(v, method)(f, pdata) is None:
-          print('\x1b[1;31mfailed\nerror: invalid ' + ('private key' if 'ecc' in method else 'password') + ' or file not encrypted\x1b[0m', file=sys.stderr)
+      if os.path.isfile(f):
+        print('decrypting ' + f + '... ', flush=True, end='')
+        
+        try:
+          if getattr(v, method)(f, pdata) is None:
+            print('\x1b[1;31mfailed\nerror: invalid ' + ('private key' if 'ecc' in method else 'password') + ' or file not encrypted\x1b[0m', file=sys.stderr)
       
-        else:
-          print('\x1b[1;32mok\x1b[0m')
+          else:
+            print('\x1b[1;32mok\x1b[0m')
 
-      except Exception as e:
-        print('\x1b[1;31mfailed\nerror: ' + str(e) + '\x1b[0m', file=sys.stderr)
+        except Exception as e:
+          print('\x1b[1;31mfailed\nerror: ' + str(e) + '\x1b[0m', file=sys.stderr)
+
+      elif not os.path.exists(f):
+        print('decrypting ' + f + '... \x1b[1;31mnot found\x1b[0m')
+
+      else:
+        print('decrypting ' + f + '... \x1b[1;33munsupported\x1b[0m')
 
   m = args()
 
@@ -330,7 +344,18 @@ def main(cols=80, v=Vaulty()):
   
         else:
           for f in sys.argv[2:]:
-            print(v.hash_file(f, m[0]).decode('utf-8') + '  ' + f)
+            if os.path.isfile(f):
+              try:
+                print(v.hash_file(f, m[0]).decode('utf-8').ljust(66) + f)
+
+              except Exception as e:
+                print('\x1b[1;31mfailed'.ljust(73) + f + '\x1b[0m')
+
+            elif not os.path.exists(f):
+              print('\x1b[1;31mnot found'.ljust(73) + f + '\x1b[0m')
+
+            else:
+              print('\x1b[1;33munsupported'.ljust(73) + f + '\x1b[0m')
 
       elif m[1] is None:
         password = getpass.getpass('Vaulty Password: ').encode('utf-8')

@@ -26,7 +26,7 @@ setup(
   ],
   packages=["vaulty"],
   include_package_data=True,
-  install_requires=["cryptography>=2.5"],
+  install_requires=["cryptography>=2.7"],
   entry_points={
     "console_scripts": [
       "vaulty=vaulty:main",

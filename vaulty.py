@@ -26,7 +26,7 @@ from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 from cryptography.hazmat.backends import default_backend
 from cryptography.exceptions import InvalidTag
 
-__version__ = '1.1.0'
+__version__ = '1.1.1'
 
 class Vaulty():
   def __init__(self):
@@ -433,9 +433,7 @@ def main(cols=80, v=Vaulty()):
             print('\x1b[1;31merror: password is mandatory\x1b[0m', file=sys.stderr)
 
   else:
-    print('Vaulty v' + __version__, file=sys.stderr)
-    print('https://github.com/cmason3/vaulty\n', file=sys.stderr)
-    print('Usage:', file=sys.stderr)
+    print('usage:', file=sys.stderr)
     print('  ' + os.path.basename(sys.argv[0]) + ' keygen', file=sys.stderr)
     print('  ' + os.path.basename(sys.argv[0]) + ' keyinfo <public key>', file=sys.stderr)
     print('  ' + os.path.basename(sys.argv[0]) + ' encrypt [-k <public key>] [file1[ file2[ ...]]]', file=sys.stderr)

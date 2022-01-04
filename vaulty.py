@@ -22,11 +22,13 @@ from cryptography.hazmat.primitives.kdf.scrypt import Scrypt
 from cryptography.hazmat.primitives.ciphers.aead import ChaCha20Poly1305
 from cryptography.hazmat.primitives.asymmetric.x448 import X448PrivateKey
 from cryptography.hazmat.primitives.asymmetric.x448 import X448PublicKey
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 from cryptography.hazmat.backends import default_backend
 from cryptography.exceptions import InvalidTag
 
-__version__ = '1.1.1'
+__version__ = '1.2.0'
 
 class Vaulty():
   def __init__(self):
@@ -108,14 +110,21 @@ class Vaulty():
 
   def generate_keypair(self, version=b'\x41', armour_public=True, comment=b''):
     if version == b'\x41':
-      private = X448PrivateKey.generate()
-      public = version + private.public_key().public_bytes(serialization.Encoding.Raw, serialization.PublicFormat.Raw) + comment
+      private_x448 = X448PrivateKey.generate()
+      public_x448 = private_x448.public_key().public_bytes(serialization.Encoding.Raw, serialization.PublicFormat.Raw)
+      private = private_x448.private_bytes(serialization.Encoding.Raw, serialization.PrivateFormat.Raw, serialization.NoEncryption())
+
+      private_ed25519 = Ed25519PrivateKey.generate()
+      public_ed25519 = private_ed25519.public_key().public_bytes(serialization.Encoding.Raw, serialization.PublicFormat.Raw)
+      private = private + private_ed25519.private_bytes(serialization.Encoding.Raw, serialization.PrivateFormat.Raw, serialization.NoEncryption())
+
+      public = version + public_x448 + public_ed25519 + comment
 
       if armour_public:
         public = self.__kprefix.encode('utf-8') + base64.b64encode(public)
         public = b'\n'.join([public[i:i + 80] for i in range(0, len(public), 80)]) + b'\n'
 
-      return private.private_bytes(serialization.Encoding.Raw, serialization.PrivateFormat.Raw, serialization.NoEncryption()), public
+      return private, public
   
   def public_key_info(self, public_key):
     if public_key.lstrip().startswith(self.__kprefix.encode('utf-8')):
@@ -126,7 +135,7 @@ class Vaulty():
       digest.update(public_key)
       fprint = digest.finalize().hex()
       fprint = ':'.join([fprint[i:i + 4] for i in range(0, len(fprint), 4)])
-      return fprint.encode('utf-8'), public_key[57:], b'ECDH/X448'
+      return fprint.encode('utf-8'), public_key[89:], b'ECDH/X448, EdDSA/Ed25519'
 
   def encrypt_ecc(self, plaintext, public_key, cols=None, armour=True):
     if public_key.lstrip().startswith(self.__kprefix.encode('utf-8')):
@@ -136,7 +145,7 @@ class Vaulty():
       private, public = self.generate_keypair(public_key[:1], False)
       salt = os.urandom(16)
   
-      key = X448PrivateKey.from_private_bytes(private).exchange(X448PublicKey.from_public_bytes(public_key[1:57]))
+      key = X448PrivateKey.from_private_bytes(private[:56]).exchange(X448PublicKey.from_public_bytes(public_key[1:57]))
       key = HKDF(algorithm=hashes.SHA256(), length=32, salt=salt, info=b'vaulty').derive(key)
   
       nonce = os.urandom(12)
@@ -165,7 +174,7 @@ class Vaulty():
         raise Exception('private key required')
 
       if ciphertext.startswith(b'\x41') and len(ciphertext) > 85:
-        key = X448PrivateKey.from_private_bytes(private_key).exchange(X448PublicKey.from_public_bytes(ciphertext[17:73]))
+        key = X448PrivateKey.from_private_bytes(private_key[:56]).exchange(X448PublicKey.from_public_bytes(ciphertext[17:73]))
         key = HKDF(algorithm=hashes.SHA256(), length=32, salt=ciphertext[1:17], info=b'vaulty').derive(key)
         return ChaCha20Poly1305(key).decrypt(ciphertext[73:85], ciphertext[85:], None)
 
@@ -312,7 +321,7 @@ def main(cols=80, v=Vaulty()):
                   pkinfo = v.public_key_info(public)
                   print('\nPublic Key is "' + pkinfo[1].decode('utf-8') + '"')
                   print('Public Key Fingerprint is ' + pkinfo[0].decode('utf-8'))
-                  print('Public Key Algorithm is ' + pkinfo[2].decode('utf-8'))
+                  print('Public Key Algorithms are ' + pkinfo[2].decode('utf-8'))
                   print('\x1b[1;32mok\x1b[0m')
           
                 else:
@@ -329,7 +338,7 @@ def main(cols=80, v=Vaulty()):
       if pkinfo is not None:
         print('Public Key is "' + pkinfo[1].decode('utf-8') + '"')
         print('Public Key Fingerprint is ' + pkinfo[0].decode('utf-8'))
-        print('Public Key Algorithm is ' + pkinfo[2].decode('utf-8'))
+        print('Public Key Algorithms are ' + pkinfo[2].decode('utf-8'))
 
       else:
         print('\x1b[1;31merror: public key required\x1b[0m', file=sys.stderr)

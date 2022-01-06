@@ -28,7 +28,7 @@ from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 from cryptography.hazmat.backends import default_backend
 from cryptography.exceptions import InvalidTag
 
-__version__ = '1.2.2'
+__version__ = '1.2.3'
 
 class Vaulty():
   def __init__(self):
@@ -107,6 +107,11 @@ class Vaulty():
 
     except InvalidTag:
       pass
+
+  def chpass(self, ciphertext, opassword, npassword, cols=None, armour=True):
+    plaintext = self.decrypt(ciphertext, opassword)
+    if plaintext is not None:
+      return self.encrypt(plaintext, npassword, cols, armour)
 
   def generate_keypair(self, version=b'\x41', armour_public=True, comment=b''):
     if version == b'\x41':
@@ -199,15 +204,12 @@ class Vaulty():
     with open(filepath, 'rb') as fh:
       ciphertext = fh.read()
 
+    if ciphertext is not None:
       if ciphertext.lstrip().startswith(self.__prefix.encode('utf-8')):
         cols = len(ciphertext.lstrip().splitlines()[0].strip())
         armour = True
 
-      plaintext = self.decrypt(ciphertext, opassword)
-
-    if plaintext is not None:
-      ciphertext = self.encrypt(plaintext, npassword, cols, armour)
-
+      ciphertext = self.chpass(ciphertext, opassword, npassword, cols, armour)
       if ciphertext is not None:
         with open(filepath, 'wb') as fh:
           fh.write(ciphertext)
@@ -416,9 +418,9 @@ def main(cols=80, v=Vaulty()):
             if npassword == getpass.getpass('Password Verification: ').encode('utf-8'):
               if len(sys.argv) == 2:
                 try:
-                  plaintext = v.decrypt(data, opassword)
-                  if plaintext is not None:
-                    print(v.encrypt(plaintext, npassword, cols).decode('utf-8'), flush=True, end='')
+                  ciphertext = v.chpass(data, opassword, npassword, cols)
+                  if ciphertext is not None:
+                    print(ciphertext.decode('utf-8'), flush=True, end='')
 
                   else:
                     print('\x1b[1;31merror: invalid password or data not encrypted\x1b[0m', file=sys.stderr)

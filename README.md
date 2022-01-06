@@ -25,6 +25,7 @@ vaulty ...
   keyinfo <public key>
   encrypt [-k <public key>] [file1[ file2[ ...]]]
   decrypt [-k <private key>] [file1[ file2[ ...]]]
+  chpass [file1[ file2[ ...]]]
   sha256 [file1[ file2[ ...]]]
 ```
 
@@ -63,6 +64,13 @@ $VAULTY;QfIfowgIxGIpxD3wpk/p5/6wTHvxalHKqhodSuorNPvuvhmHqsybZ822x6nyPWdNsZnDVFKi
 echo "$VAULTY;..." | vaulty decrypt -k ~/.vaulty/vaulty.key
 Hello World
 ```
+
+##### Change Password of Private Key
+
+```
+vaulty chpass ~/.vaulty/vaulty.key
+```
+
 
 ```python
 import vaulty

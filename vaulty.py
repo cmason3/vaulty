@@ -28,7 +28,7 @@ from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 from cryptography.hazmat.backends import default_backend
 from cryptography.exceptions import InvalidTag
 
-__version__ = '1.2.1'
+__version__ = '1.2.2'
 
 class Vaulty():
   def __init__(self):
@@ -195,6 +195,25 @@ class Vaulty():
   def decrypt_file(self, filepath, password):
     return self.__decrypt_file(filepath, password, 'decrypt')
 
+  def chpass_file(self, filepath, opassword, npassword, cols=None, armour=False):
+    with open(filepath, 'rb') as fh:
+      ciphertext = fh.read()
+
+      if ciphertext.lstrip().startswith(self.__prefix.encode('utf-8')):
+        cols = len(ciphertext.lstrip().splitlines()[0].strip())
+        armour = True
+
+      plaintext = self.decrypt(ciphertext, opassword)
+
+    if plaintext is not None:
+      ciphertext = self.encrypt(plaintext, npassword, cols, armour)
+
+      if ciphertext is not None:
+        with open(filepath, 'wb') as fh:
+          fh.write(ciphertext)
+
+        return True
+
   def encrypt_file_ecc(self, filepath, public_key):
     return self.__encrypt_file(filepath, public_key, 'encrypt_ecc')
 
@@ -220,6 +239,7 @@ def main(cols=80, v=Vaulty()):
       elif m.lower() == 'decrypt'[0:len(m)]: m = 'decrypt'
       elif m.lower() == 'keygen'[0:len(m)] and len(m) > 3: m = 'keygen'
       elif m.lower() == 'keyinfo'[0:len(m)] and len(m) > 3: m = 'keyinfo'
+      elif m.lower() == 'chpass'[0:len(m)]: m = 'chpass'
       elif m.lower() == 'sha256'[0:len(m)]: m = 'sha256'
       else: return None
   
@@ -285,6 +305,28 @@ def main(cols=80, v=Vaulty()):
 
       else:
         print('decrypting ' + f + '... \x1b[1;33munsupported\x1b[0m')
+
+  def chpass_files(v, files, opassword, npassword):
+    print()
+    for f in files:
+      if os.path.isfile(f):
+        print('updating ' + f + '... ', flush=True, end='')
+        
+        try:
+          if v.chpass_file(f, opassword, npassword) is None:
+            print('\x1b[1;31mfailed\nerror: invalid password or file not encrypted\x1b[0m', file=sys.stderr)
+      
+          else:
+            print('\x1b[1;32mok\x1b[0m')
+
+        except Exception as e:
+          print('\x1b[1;31mfailed\nerror: ' + str(e) + '\x1b[0m', file=sys.stderr)
+
+      elif not os.path.exists(f):
+        print('updating ' + f + '... \x1b[1;31mnot found\x1b[0m')
+
+      else:
+        print('updating ' + f + '... \x1b[1;33munsupported\x1b[0m')
 
   m = args()
 
@@ -365,6 +407,36 @@ def main(cols=80, v=Vaulty()):
 
             else:
               print('\x1b[1;33munsupported'.ljust(73) + f + '\x1b[0m')
+
+      elif m[0] == 'chpass':
+        opassword = getpass.getpass('Old Vaulty Password: ').encode('utf-8')
+        if len(opassword) > 0:
+          npassword = getpass.getpass('\nNew Vaulty Password: ').encode('utf-8')
+          if len(npassword) > 0:
+            if npassword == getpass.getpass('Password Verification: ').encode('utf-8'):
+              if len(sys.argv) == 2:
+                try:
+                  plaintext = v.decrypt(data, opassword)
+                  if plaintext is not None:
+                    print(v.encrypt(plaintext, npassword, cols).decode('utf-8'), flush=True, end='')
+
+                  else:
+                    print('\x1b[1;31merror: invalid password or data not encrypted\x1b[0m', file=sys.stderr)
+
+                except Exception as e:
+                  print('\x1b[1;31merror: ' + str(e) + '\x1b[0m', file=sys.stderr)
+
+              else:
+                chpass_files(v, sys.argv[2:], opassword, npassword)
+
+            else:
+              print('\x1b[1;31merror: password verification failed\x1b[0m', file=sys.stderr)
+
+          else:
+            print('\x1b[1;31merror: password is mandatory\x1b[0m', file=sys.stderr)
+
+        else:
+          print('\x1b[1;31merror: password is mandatory\x1b[0m', file=sys.stderr)
 
       elif m[1] is None:
         password = getpass.getpass('Vaulty Password: ').encode('utf-8')
@@ -448,6 +520,7 @@ def main(cols=80, v=Vaulty()):
     print('  ' + os.path.basename(sys.argv[0]) + ' keyinfo <public key>', file=sys.stderr)
     print('  ' + os.path.basename(sys.argv[0]) + ' encrypt [-k <public key>] [file1[ file2[ ...]]]', file=sys.stderr)
     print('  ' + os.path.basename(sys.argv[0]) + ' decrypt [-k <private key>] [file1[ file2[ ...]]]', file=sys.stderr)
+    print('  ' + os.path.basename(sys.argv[0]) + ' chpass [file1[ file2[ ...]]]', file=sys.stderr)
     print('  ' + os.path.basename(sys.argv[0]) + ' sha256 [file1[ file2[ ...]]]', file=sys.stderr)
 
 

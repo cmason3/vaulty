@@ -28,7 +28,7 @@ from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 from cryptography.hazmat.backends import default_backend
 from cryptography.exceptions import InvalidTag
 
-__version__ = '1.2.3'
+__version__ = '1.2.4'
 
 class Vaulty():
   def __init__(self):
@@ -246,11 +246,18 @@ def main(cols=80, v=Vaulty()):
       else: return None
   
       if m == 'keyinfo':
+        if len(sys.argv) == 2:
+          sys.argv.append(os.getenv('HOME') + '/.vaulty/vaulty_' + getpass.getuser() + '.pub')
+
         if len(sys.argv) == 3:
           if os.path.isfile(sys.argv[2]):
             with open(sys.argv[2], 'rb') as fh:
               k = fh.read()
               return m, k
+
+          else:
+            print('\x1b[1;31merror: unable to read public key \'' + sys.argv[2] + '\'\x1b[0m', file=sys.stderr)
+            sys.exit(0)
       
       else:
         if m == 'encrypt' or m == 'decrypt':
@@ -519,7 +526,7 @@ def main(cols=80, v=Vaulty()):
     print('vaulty v' + __version__, file=sys.stderr)
     print('usage:', file=sys.stderr)
     print('  ' + os.path.basename(sys.argv[0]) + ' keygen', file=sys.stderr)
-    print('  ' + os.path.basename(sys.argv[0]) + ' keyinfo <public key>', file=sys.stderr)
+    print('  ' + os.path.basename(sys.argv[0]) + ' keyinfo [public key]', file=sys.stderr)
     print('  ' + os.path.basename(sys.argv[0]) + ' encrypt [-k <public key>] [file1[ file2[ ...]]]', file=sys.stderr)
     print('  ' + os.path.basename(sys.argv[0]) + ' decrypt [-k <private key>] [file1[ file2[ ...]]]', file=sys.stderr)
     print('  ' + os.path.basename(sys.argv[0]) + ' chpass [file1[ file2[ ...]]]', file=sys.stderr)

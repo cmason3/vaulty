@@ -256,7 +256,7 @@ def main(cols=80, v=Vaulty()):
               return m, k
 
           else:
-            print('\x1b[1;31merror: unable to read public key \'' + sys.argv[2] + '\'\x1b[0m', file=sys.stderr)
+            print('\x1b[1;31merror: unable to open file \'' + sys.argv[2] + '\'\x1b[0m', file=sys.stderr)
             sys.exit(0)
       
       else:
@@ -266,6 +266,10 @@ def main(cols=80, v=Vaulty()):
               with open(sys.argv[3], 'rb') as fh:
                 k = fh.read()
                 del sys.argv[3], sys.argv[2]
+
+            else:
+              print('\x1b[1;31merror: unable to open file \'' + sys.argv[3] + '\'\x1b[0m', file=sys.stderr)
+              sys.exit(0)
   
         return m, k
   

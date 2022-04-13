@@ -23,10 +23,10 @@ python3 -m pip install --upgrade --user pyvaulty
 vaulty ...
   keygen
   keyinfo [public key]
-  encrypt [-k <public key>] [file1[ file2[ ...]]]
-  decrypt [-k <private key>] [file1[ file2[ ...]]]
-  chpass [file1[ file2[ ...]]]
-  sha256 [file1[ file2[ ...]]]
+  encrypt [-k <public key>] [file1] [file2] [...]
+  decrypt [-k <private key>] [file1] [file2] [...]
+  chpass [file1] [file2] [...]
+  sha256 [file1] [file2] [...]
 ```
 
 #### Example Usage - Symmetric Encryption

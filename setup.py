@@ -1,4 +1,4 @@
-import pathlib
+import sys, pathlib
 from setuptools import setup
 
 for line in open('vaulty.py'):

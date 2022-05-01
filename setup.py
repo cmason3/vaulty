@@ -9,10 +9,10 @@ for line in open('vaulty.py'):
 HERE = pathlib.Path(__file__).parent
 README = (HERE / "README.md").read_text()
 
+install_requires = ["cryptography>=2.7"]
+
 if sys.version_info[0] == 3 and sys.version_info[1] == 6:
-  install_requires=["cryptography>=2.7,<37.0"]
-else:
-  install_requires=["cryptography>=2.7"]
+  install_requires = ["cryptography>=2.7,<37.0"]
 
 setup(
   name="pyvaulty",

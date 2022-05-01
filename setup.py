@@ -7,7 +7,6 @@ for line in open('vaulty.py'):
     break
 
 HERE = pathlib.Path(__file__).parent
-
 README = (HERE / "README.md").read_text()
 
 setup(
@@ -21,6 +20,7 @@ setup(
   author_email="chris@netnix.org",
   license="MIT",
   classifiers=[
+    "Development Status :: 5 - Production/Stable",
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3"
   ],

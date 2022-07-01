@@ -188,18 +188,20 @@ class Vaulty():
     except InvalidTag:
       pass
 
-  def sign_file(self, filepath, private_key, cols=None):
+  def sign_ecc(self, data, private_key, cols=None):
+    key = Ed25519PrivateKey.from_private_bytes(private_key[56:])
+    r = self.__sprefix.encode('utf-8') + base64.b64encode(key.sign(data))
+
+    if cols is not None:
+      r = b'\n'.join([r[i:i + cols] for i in range(0, len(r), cols)])
+
+    return r + b'\n'
+
+  def sign_file_ecc(self, filepath, private_key, cols=None):
     if os.path.isfile(filepath):
       if os.path.getsize(filepath) < 2**31:
-        key = Ed25519PrivateKey.from_private_bytes(private_key[56:])
-
         with open(filepath, 'rb') as fh:
-          r = self.__sprefix.encode('utf-8') + base64.b64encode(key.sign(fh.read()))
-
-          if cols is not None:
-            r = b'\n'.join([r[i:i + cols] for i in range(0, len(r), cols)])
-
-          return r + b'\n'
+          return self.sign_ecc(fh.read(), private_key, cols)
 
       else:
         raise Exception('file is too big to be signed (max size is <2gb)')
@@ -210,7 +212,7 @@ class Vaulty():
     else:
       raise Exception('unable to sign file - unsupported file type')
 
-  def verify_file(self, filepath, public_key, signature):
+  def verify_ecc(self, data, public_key, signature):
     if public_key.lstrip().startswith(self.__kprefix.encode('utf-8')):
       public_key = base64.b64decode(public_key.strip()[len(self.__kprefix):])
 
@@ -218,29 +220,31 @@ class Vaulty():
       if signature.lstrip().startswith(self.__sprefix.encode('utf-8')):
         signature = base64.b64decode(signature.strip()[len(self.__sprefix):])
 
-      if os.path.isfile(filepath):
-        if os.path.getsize(filepath) < 2**31:
-          try:
-            key = Ed25519PublicKey.from_public_bytes(public_key[57:])
+        try:
+          key = Ed25519PublicKey.from_public_bytes(public_key[57:89])
+          key.verify(signature, data)
+          return True
 
-            with open(filepath, 'rb') as fh:
-              key.verify(signature, fh.read())
-              return True
-
-          except InvalidSignature:
-            pass
-
-        else:
-          raise Exception('file is too big to be verified (max size is <2gb)')
-
-      elif not os.path.exists(filepath):
-        raise Exception('unable to verify file - file not found')
-
-      else:
-        raise Exception('unable to verify file - unsupported file type')
+        except InvalidSignature:
+          pass
 
     else:
       raise Exception('public key required')
+
+  def verify_file_ecc(self, filepath, public_key, signature):
+    if os.path.isfile(filepath):
+      if os.path.getsize(filepath) < 2**31:
+        with open(filepath, 'rb') as fh:
+          return self.verify_ecc(fh.read(), public_key, signature)
+
+      else:
+        raise Exception('file is too big to be verified (max size is <2gb)')
+
+    elif not os.path.exists(filepath):
+      raise Exception('unable to verify file - file not found')
+
+    else:
+      raise Exception('unable to verify file - unsupported file type')
 
   def hash(self, data, algorithm):
     digest = hashes.Hash(getattr(hashes, algorithm.upper())())
@@ -472,7 +476,7 @@ def main(cols=80, v=Vaulty()):
         private = v.decrypt(m[1], password)
         if private is not None:
           try:
-            print(v.sign_file(sys.argv[2], private, cols).decode('utf-8'), flush=True, end='')
+            print(v.sign_file_ecc(sys.argv[2], private, cols).decode('utf-8'), flush=True, end='')
 
           except Exception as e:
             print('\x1b[1;31merror: ' + str(e) + '\x1b[0m', file=sys.stderr)
@@ -484,17 +488,23 @@ def main(cols=80, v=Vaulty()):
         print('\x1b[1;31merror: password is mandatory\x1b[0m', file=sys.stderr)
 
     elif m[0] == 'verify':
-      if len(sys.argv) == 5:
+      if len(sys.argv) == 3:
         signature = sys.stdin.buffer.read()
 
       else:
-        # read signature from file here
+        if os.path.isfile(sys.argv[3]):
+          with open(sys.argv[3], 'rb') as fh:
+            signature = fh.read()
 
-        # m[1] has public key path
+        else:
+          print('\x1b[1;31merror: unable to open file \'' + sys.argv[3] + '\'\x1b[0m', file=sys.stderr)
+          sys.exit(0)
 
-        
+      if v.verify_file_ecc(sys.argv[2], m[1], signature):
+        print('\x1b[1;32mok\x1b[0m')
 
-
+      else:
+        print('\x1b[1;31merror: verification failed\x1b[0m', file=sys.stderr)
 
     else:
       if len(sys.argv) == 2:
@@ -625,16 +635,15 @@ def main(cols=80, v=Vaulty()):
             print('\x1b[1;31merror: password is mandatory\x1b[0m', file=sys.stderr)
 
   else:
-    print('vaulty v' + __version__, file=sys.stderr)
-    print('usage:', file=sys.stderr)
-    print('  ' + os.path.basename(sys.argv[0]) + ' keygen', file=sys.stderr)
-    print('  ' + os.path.basename(sys.argv[0]) + ' keyinfo [public key]', file=sys.stderr)
-    print('  ' + os.path.basename(sys.argv[0]) + ' encrypt [-k <public key>] [file1] [file2] [...]', file=sys.stderr)
-    print('  ' + os.path.basename(sys.argv[0]) + ' decrypt [-k <private key>] [file1] [file2] [...]', file=sys.stderr)
-    print('  ' + os.path.basename(sys.argv[0]) + ' sign -k <private key> <file>', file=sys.stderr)
-    print('  ' + os.path.basename(sys.argv[0]) + ' verify -k <public key> <file> [signature]', file=sys.stderr)
-    print('  ' + os.path.basename(sys.argv[0]) + ' chpass [file1] [file2] [...]', file=sys.stderr)
-    print('  ' + os.path.basename(sys.argv[0]) + ' sha256 [file1] [file2] [...]', file=sys.stderr)
+    print('Vaulty v' + __version__, file=sys.stderr)
+    print('Usage: ' + os.path.basename(sys.argv[0]) + ' keygen', file=sys.stderr)
+    print(' ' * (len(os.path.basename(sys.argv[0])) + 7) + ' keyinfo [public key]', file=sys.stderr)
+    print(' ' * (len(os.path.basename(sys.argv[0])) + 7) + ' encrypt [-k <public key>] [file1] [file2] [...]', file=sys.stderr)
+    print(' ' * (len(os.path.basename(sys.argv[0])) + 7) + ' decrypt [-k <private key>] [file1] [file2] [...]', file=sys.stderr)
+    print(' ' * (len(os.path.basename(sys.argv[0])) + 7) + ' sign -k <private key> <file>', file=sys.stderr)
+    print(' ' * (len(os.path.basename(sys.argv[0])) + 7) + ' verify -k <public key> <file> [signature]', file=sys.stderr)
+    print(' ' * (len(os.path.basename(sys.argv[0])) + 7) + ' chpass [file1] [file2] [...]', file=sys.stderr)
+    print(' ' * (len(os.path.basename(sys.argv[0])) + 7) + ' sha256 [file1] [file2] [...]', file=sys.stderr)
 
 
 if __name__ == '__main__':

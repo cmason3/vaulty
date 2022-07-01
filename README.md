@@ -24,6 +24,8 @@ vaulty ...
   keyinfo [public key]
   encrypt [-k <public key>] [file1] [file2] [...]
   decrypt [-k <private key>] [file1] [file2] [...]
+  sign -k <private key> <file>
+  verify -k <public key> <file> [signature]
   chpass [file1] [file2] [...]
   sha256 [file1] [file2] [...]
 ```
@@ -91,3 +93,29 @@ if plaintext is None:
   print('error: invalid private key or data not encrypted', file=sys.stderr)
 ```
 
+#### Example Usage - Public Key Signatures
+
+With Public Key Encryption we encrypt using someone's public key and decrypt using their private key, but we also have the ability to use these keys in a different way, to allow us to sign a piece of data with our private key and then someone can verify that signature using the sender's public key. Let's assume Bob sent Alice a contract and asked Alice to sign it - how does Bob know that Alice actually signed it with her own hand and it wasn't Eve who knows what Alice's signature looks like? This is where public key cryptography helps - if Alice was to create a signature of the contract using her private key (that is password protected) and then sent that signature to Bob, then Bob is able to verify that signature using Alice's public key (which is public) to verify without doubt that Alice has indeed signed it.
+
+You still have the same challenge as with Public Key Encryption in that you need to verify via another method that you have the public key that does belong to Alice!
+
+```
+vaulty keygen
+
+vaulty sign -k ~/.vaulty/vaulty.key CONTRACT.md >CONTRACT.md.sig
+
+cat CONTRACT.md.sig | vaulty verify -k ~/.vaulty/vaulty.pub CONTRACT.md 
+```
+
+```python
+import vaulty
+
+v = vaulty.Vaulty()
+
+private, public = v.generate_keypair()
+
+signature = v.sign_ecc('Hello World'.encode('utf-8'), private)
+
+if v.verify_ecc('Hello World'.encode('utf-8'), public, signature):
+  print('Signature Verified')
+```

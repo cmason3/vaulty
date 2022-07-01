@@ -4,9 +4,9 @@
 ## Vaulty
 ### Encrypt/Decrypt with ChaCha20-Poly1305
 
-Vaulty is an extremely lightweight encryption/decryption tool which uses ChaCha20-Poly1305 to provide 256-bit authenticated symmetric encryption (AEAD) using Scrypt as the password based key derivation function. It also supports public key (asymmetric) encryption via ECDH (Elliptic Curve Diffie-Hellman) using X448 and authentication via EdDSA (Edwards Curve Digital Signature Algorithm) using Ed25519. It can be used to encrypt/decrypt, or `stdin` if you don't specify any files.
+Vaulty is an extremely lightweight encryption/decryption tool which uses ChaCha20-Poly1305 to provide 256-bit authenticated symmetric encryption (AEAD) using Scrypt as the password based key derivation function. It also supports public key (asymmetric) encryption via ECDH (Elliptic Curve Diffie-Hellman) using X448 and authentication via EdDSA (Edwards Curve Digital Signature Algorithm) using Ed25519.
 
-If encrypting `stdin` then the output will be Base64 encoded whereas if encrypting a file then it won't and it will have a `.vlt` extension added to indicate it has been encrypted.
+It can be used to encrypt/decrypt, or `stdin` if you don't specify any files. If encrypting `stdin` then the output will be Base64 encoded whereas if encrypting a file then it won't and it will have a `.vlt` extension added to indicate it has been encrypted.
 
 It relies on the [cryptography](https://pypi.org/project/cryptography/) Python module to provide the routines for ChaCha20-Poly1305, Scrypt, ECDH with X448 and EdDSA with Ed25519.
  

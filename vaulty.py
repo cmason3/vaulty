@@ -123,9 +123,9 @@ class Vaulty():
 
       private_ed25519 = Ed25519PrivateKey.generate()
       public_ed25519 = private_ed25519.public_key().public_bytes(serialization.Encoding.Raw, serialization.PublicFormat.Raw)
-      private = private + private_ed25519.private_bytes(serialization.Encoding.Raw, serialization.PrivateFormat.Raw, serialization.NoEncryption())
+      private = version + b'\x01' + private + private_ed25519.private_bytes(serialization.Encoding.Raw, serialization.PrivateFormat.Raw, serialization.NoEncryption())
 
-      public = version + public_x448 + public_ed25519 + comment
+      public = version + b'\x02' + public_x448 + public_ed25519 + comment
 
       if armour_public:
         public = self.__kprefix.encode('utf-8') + base64.b64encode(public)
@@ -137,29 +137,29 @@ class Vaulty():
     if public_key.lstrip().startswith(self.__kprefix.encode('utf-8')):
       public_key = base64.b64decode(public_key.strip()[len(self.__kprefix):])
 
-    if public_key.startswith(b'\x41'):
+    if public_key.startswith(b'\x41\x02'):
       digest = hashes.Hash(hashes.SHAKE128(8))
       digest.update(public_key)
       fprint = digest.finalize().hex()
       fprint = ':'.join([fprint[i:i + 4] for i in range(0, len(fprint), 4)])
-      return fprint.encode('utf-8'), public_key[89:], b'ECDH/X448, EdDSA/Ed25519'
+      return fprint.encode('utf-8'), public_key[90:], b'ECDH/X448, EdDSA/Ed25519'
 
   def encrypt_ecc(self, plaintext, public_key, cols=None, armour=True):
     if public_key.lstrip().startswith(self.__kprefix.encode('utf-8')):
       public_key = base64.b64decode(public_key.strip()[len(self.__kprefix):])
 
-    if public_key.startswith(b'\x41'):
+    if public_key.startswith(b'\x41\x02'):
       private, public = self.generate_keypair(public_key[:1], False)
       salt = os.urandom(16)
   
-      key = X448PrivateKey.from_private_bytes(private[:56]).exchange(X448PublicKey.from_public_bytes(public_key[1:57]))
+      key = X448PrivateKey.from_private_bytes(private[2:58]).exchange(X448PublicKey.from_public_bytes(public_key[2:58]))
       key = HKDF(algorithm=hashes.SHA256(), length=32, salt=salt, info=b'vaulty').derive(key)
   
       nonce = os.urandom(12)
       ciphertext = ChaCha20Poly1305(key).encrypt(nonce, plaintext, None)
   
       if armour:
-        r = self.__prefix.encode('utf-8') + base64.b64encode(public_key[:1] + salt + public[1:57] + nonce + ciphertext)
+        r = self.__prefix.encode('utf-8') + base64.b64encode(public_key[:1] + b'\x03' + salt + public[2:58] + nonce + ciphertext)
   
         if cols is not None:
           r = b'\n'.join([r[i:i + cols] for i in range(0, len(r), cols)])
@@ -167,7 +167,7 @@ class Vaulty():
         return r + b'\n'
   
       else:
-        return public_key[:1] + salt + public[1:57] + nonce + ciphertext
+        return public_key[:1] + b'\x03' + salt + public[2:58] + nonce + ciphertext
 
     else:
       raise Exception('public key required')
@@ -177,25 +177,33 @@ class Vaulty():
       if ciphertext.lstrip().startswith(self.__prefix.encode('utf-8')):
         ciphertext = base64.b64decode(ciphertext.strip()[8:])
 
-      if ciphertext.startswith(b'\x41') and len(ciphertext) > 85:
-        key = X448PrivateKey.from_private_bytes(private_key[:56]).exchange(X448PublicKey.from_public_bytes(ciphertext[17:73]))
-        key = HKDF(algorithm=hashes.SHA256(), length=32, salt=ciphertext[1:17], info=b'vaulty').derive(key)
-        return ChaCha20Poly1305(key).decrypt(ciphertext[73:85], ciphertext[85:], None)
+      if private_key.startswith(b'\x41\x01'):
+        if ciphertext.startswith(b'\x41\x03') and len(ciphertext) > 86:
+          key = X448PrivateKey.from_private_bytes(private_key[2:58]).exchange(X448PublicKey.from_public_bytes(ciphertext[18:74]))
+          key = HKDF(algorithm=hashes.SHA256(), length=32, salt=ciphertext[2:18], info=b'vaulty').derive(key)
+          return ChaCha20Poly1305(key).decrypt(ciphertext[74:86], ciphertext[86:], None)
 
-      elif ciphertext.startswith(b'\x01'):
-        raise Exception('wrong method - password based encryption')
+        elif ciphertext.startswith(b'\x01'):
+          raise Exception('wrong method - password based encryption')
+
+      else:
+        raise Exception('private key required')
 
     except InvalidTag:
       pass
 
   def sign_ecc(self, data, private_key, cols=None):
-    key = Ed25519PrivateKey.from_private_bytes(private_key[56:])
-    r = self.__sprefix.encode('utf-8') + base64.b64encode(key.sign(data))
+    if private_key.startswith(b'\x41\x01'):
+      key = Ed25519PrivateKey.from_private_bytes(private_key[58:])
+      r = self.__sprefix.encode('utf-8') + base64.b64encode(b'\x41\x04' + key.sign(data))
 
-    if cols is not None:
-      r = b'\n'.join([r[i:i + cols] for i in range(0, len(r), cols)])
+      if cols is not None:
+        r = b'\n'.join([r[i:i + cols] for i in range(0, len(r), cols)])
 
-    return r + b'\n'
+      return r + b'\n'
+
+    else:
+      raise Exception('private key required')
 
   def sign_file_ecc(self, filepath, private_key, cols=None):
     if os.path.isfile(filepath):
@@ -216,17 +224,18 @@ class Vaulty():
     if public_key.lstrip().startswith(self.__kprefix.encode('utf-8')):
       public_key = base64.b64decode(public_key.strip()[len(self.__kprefix):])
 
-    if public_key.startswith(b'\x41'):
+    if public_key.startswith(b'\x41\x02'):
       if signature.lstrip().startswith(self.__sprefix.encode('utf-8')):
         signature = base64.b64decode(signature.strip()[len(self.__sprefix):])
 
-        try:
-          key = Ed25519PublicKey.from_public_bytes(public_key[57:89])
-          key.verify(signature, data)
-          return True
+        if signature.startswith(b'\x41\x04'):
+          try:
+            key = Ed25519PublicKey.from_public_bytes(public_key[58:90])
+            key.verify(signature[2:], data)
+            return True
 
-        except InvalidSignature:
-          pass
+          except InvalidSignature:
+            pass
 
     else:
       raise Exception('public key required')
@@ -500,11 +509,15 @@ def main(cols=80, v=Vaulty()):
           print('\x1b[1;31merror: unable to open file \'' + sys.argv[3] + '\'\x1b[0m', file=sys.stderr)
           sys.exit(0)
 
-      if v.verify_file_ecc(sys.argv[2], m[1], signature):
-        print('\x1b[1;32mok\x1b[0m')
+      try:
+        if v.verify_file_ecc(sys.argv[2], m[1], signature):
+          print('\x1b[1;32mok\x1b[0m')
 
-      else:
-        print('\x1b[1;31merror: verification failed\x1b[0m', file=sys.stderr)
+        else:
+          print('\x1b[1;31merror: verification failed\x1b[0m', file=sys.stderr)
+
+      except Exception as e:
+        print('\x1b[1;31merror: ' + str(e) + '\x1b[0m', file=sys.stderr)
 
     else:
       if len(sys.argv) == 2:

@@ -149,7 +149,7 @@ class Vaulty():
       public_key = base64.b64decode(public_key.strip()[len(self.__kprefix):])
 
     if public_key.startswith(b'\x41\x02'):
-      private, public = self.generate_keypair(public_key[:1], False)
+      private, public = self.generate_keypair(b'\x41', False)
       salt = os.urandom(16)
   
       key = X448PrivateKey.from_private_bytes(private[2:58]).exchange(X448PublicKey.from_public_bytes(public_key[2:58]))
@@ -159,7 +159,7 @@ class Vaulty():
       ciphertext = ChaCha20Poly1305(key).encrypt(nonce, plaintext, None)
   
       if armour:
-        r = self.__prefix.encode('utf-8') + base64.b64encode(public_key[:1] + b'\x03' + salt + public[2:58] + nonce + ciphertext)
+        r = self.__prefix.encode('utf-8') + base64.b64encode(b'\x41\x03' + salt + public[2:58] + nonce + ciphertext)
   
         if cols is not None:
           r = b'\n'.join([r[i:i + cols] for i in range(0, len(r), cols)])
@@ -167,7 +167,7 @@ class Vaulty():
         return r + b'\n'
   
       else:
-        return public_key[:1] + b'\x03' + salt + public[2:58] + nonce + ciphertext
+        return b'\x41\x03' + salt + public[2:58] + nonce + ciphertext
 
     else:
       raise Exception('public key required')
@@ -339,12 +339,31 @@ def main(cols=80, v=Vaulty()):
               print('\x1b[1;31merror: unable to open file \'' + sys.argv[3] + '\'\x1b[0m', file=sys.stderr)
               sys.exit(0)
   
-        elif m == 'sign' or m == 'verify':
-          if len(sys.argv) >= 5 and sys.argv[2] == '-k':
+        elif m == 'sign':
+          if sys.argv[2] != '-k':
+            default_private_key_file = os.getenv('HOME') + '/.vaulty/vaulty_' + getpass.getuser() + '.key'
+            sys.argv[2:2] = ['-k', default_private_key_file]
+
+          if len(sys.argv) == 5:
             if os.path.isfile(sys.argv[3]):
               with open(sys.argv[3], 'rb') as fh:
                 k = fh.read()
                 del sys.argv[3], sys.argv[2]
+
+            else:
+              print('\x1b[1;31merror: unable to open file \'' + sys.argv[3] + '\'\x1b[0m', file=sys.stderr)
+              sys.exit(0)
+
+          else:
+            return None
+        
+        elif m == 'verify':
+          if 5 <= len(sys.argv) <= 6 and sys.argv[2] == '-k':
+            if os.path.isfile(sys.argv[3]):
+              with open(sys.argv[3], 'rb') as fh:
+                k = fh.read()
+                del sys.argv[3], sys.argv[2]
+
             else:
               print('\x1b[1;31merror: unable to open file \'' + sys.argv[3] + '\'\x1b[0m', file=sys.stderr)
               sys.exit(0)
@@ -653,7 +672,7 @@ def main(cols=80, v=Vaulty()):
     print(' ' * (len(os.path.basename(sys.argv[0])) + 7) + ' keyinfo [public key]', file=sys.stderr)
     print(' ' * (len(os.path.basename(sys.argv[0])) + 7) + ' encrypt [-k <public key>] [file1] [file2] [...]', file=sys.stderr)
     print(' ' * (len(os.path.basename(sys.argv[0])) + 7) + ' decrypt [-k <private key>] [file1] [file2] [...]', file=sys.stderr)
-    print(' ' * (len(os.path.basename(sys.argv[0])) + 7) + ' sign -k <private key> <file>', file=sys.stderr)
+    print(' ' * (len(os.path.basename(sys.argv[0])) + 7) + ' sign [-k <private key>] <file>', file=sys.stderr)
     print(' ' * (len(os.path.basename(sys.argv[0])) + 7) + ' verify -k <public key> <file> [signature]', file=sys.stderr)
     print(' ' * (len(os.path.basename(sys.argv[0])) + 7) + ' chpass [file1] [file2] [...]', file=sys.stderr)
     print(' ' * (len(os.path.basename(sys.argv[0])) + 7) + ' sha256 [file1] [file2] [...]', file=sys.stderr)

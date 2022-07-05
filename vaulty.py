@@ -559,7 +559,7 @@ def main(cols=80, v=Vaulty()):
                 else:
                   print('\x1b[1;31mpermission denied' + (' ' * (length - 15)) + f + '\x1b[0m')
 
-              except:
+              except Exception:
                 print('\x1b[1;31mfailed' + (' ' * (length - 4)) + f + '\x1b[0m')
 
             elif os.path.isdir(f):
@@ -577,7 +577,7 @@ def main(cols=80, v=Vaulty()):
                     else:
                       print('\x1b[1;33munsupported' + (' ' * (length - 9)) + ffn + '\x1b[0m')
                       
-                  except:
+                  except Exception:
                     print('\x1b[1;31mfailed' + (' ' * (length - 4)) + ffn + '\x1b[0m')
 
             elif not os.path.exists(f):

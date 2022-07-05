@@ -29,7 +29,7 @@ from cryptography.hazmat.backends import default_backend
 from cryptography.exceptions import InvalidSignature
 from cryptography.exceptions import InvalidTag
 
-__version__ = '1.3.0'
+__version__ = '1.3.1'
 
 class Vaulty():
   def __init__(self):
@@ -340,11 +340,11 @@ def main(cols=80, v=Vaulty()):
               sys.exit(0)
   
         elif m == 'sign':
-          if sys.argv[2] != '-k':
+          if len(sys.argv) == 3 and sys.argv[2] != '-k':
             default_private_key_file = os.getenv('HOME') + '/.vaulty/vaulty_' + getpass.getuser() + '.key'
             sys.argv[2:2] = ['-k', default_private_key_file]
 
-          if len(sys.argv) == 5:
+          if len(sys.argv) == 5 and sys.argv[2] == '-k':
             if os.path.isfile(sys.argv[3]):
               with open(sys.argv[3], 'rb') as fh:
                 k = fh.read()

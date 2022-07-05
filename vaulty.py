@@ -551,12 +551,21 @@ def main(cols=80, v=Vaulty()):
           length = 64 if m[0] == 'sha256' else 128
 
           for f in sys.argv[2:]:
-            if os.path.isfile(f):
+            if os.path.isfile(f) or os.path.islink(f):
               try:
                 print(v.hash_file(f, m[0]).decode('utf-8') + '  ' + f)
 
               except Exception as e:
                 print('\x1b[1;31mfailed' + (' ' * (length - 4)) + f + '\x1b[0m')
+
+            elif os.path.isdir(f):
+              for root, dirs, files in os.walk(f):
+                for fn in files:
+                  try:
+                    print(v.hash_file(os.path.join(root, fn), m[0]).decode('utf-8') + '  ' + os.path.join(root, fn))
+
+                  except Exception as e:
+                    print('\x1b[1;31mfailed' + (' ' * (length - 4)) + f + '\x1b[0m')
 
             elif not os.path.exists(f):
               print('\x1b[1;31mnot found' + (' ' * (length - 7)) + f + '\x1b[0m')
@@ -678,7 +687,7 @@ def main(cols=80, v=Vaulty()):
     print(' ' * (len(os.path.basename(sys.argv[0])) + 7) + ' sign [-k <private key>] <file>', file=sys.stderr)
     print(' ' * (len(os.path.basename(sys.argv[0])) + 7) + ' verify -k <public key> <file> [signature]', file=sys.stderr)
     print(' ' * (len(os.path.basename(sys.argv[0])) + 7) + ' chpass [file1] [file2] [...]', file=sys.stderr)
-    print(' ' * (len(os.path.basename(sys.argv[0])) + 7) + ' sha256|sha512 [file1] [file2] [...]', file=sys.stderr)
+    print(' ' * (len(os.path.basename(sys.argv[0])) + 7) + ' sha256|sha512 [file1|dir1] [file2|dir2] [...]', file=sys.stderr)
 
 
 if __name__ == '__main__':

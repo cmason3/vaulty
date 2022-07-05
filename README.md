@@ -27,7 +27,7 @@ vaulty ...
   sign [-k <private key>] <file>
   verify -k <public key> <file> [signature]
   chpass [file1] [file2] [...]
-  sha256 [file1] [file2] [...]
+  sha256|sha512 [file1] [file2] [...]
 ```
 
 #### Example Usage - Symmetric Encryption

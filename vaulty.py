@@ -310,7 +310,8 @@ def main(cols=80, v=Vaulty()):
       elif m.lower() == 'sign'[0:len(m)] and len(m) > 1: m = 'sign'
       elif m.lower() == 'verify'[0:len(m)]: m = 'verify'
       elif m.lower() == 'chpass'[0:len(m)]: m = 'chpass'
-      elif m.lower() == 'sha256'[0:len(m)] and len(m) > 1: m = 'sha256'
+      elif m.lower() == 'sha256'[0:len(m)] and len(m) > 3: m = 'sha256'
+      elif m.lower() == 'sha512'[0:len(m)] and len(m) > 3: m = 'sha512'
       else: return None
   
       if m == 'keyinfo':
@@ -542,24 +543,26 @@ def main(cols=80, v=Vaulty()):
       if len(sys.argv) == 2:
         data = sys.stdin.buffer.read()
 
-      if m[0] == 'sha256':
+      if m[0] == 'sha256' or m[0] == 'sha512':
         if len(sys.argv) == 2:
           print(v.hash(data, m[0]).decode('utf-8'))
   
         else:
+          length = 64 if m[0] == 'sha256' else 128
+
           for f in sys.argv[2:]:
             if os.path.isfile(f):
               try:
-                print(v.hash_file(f, m[0]).decode('utf-8').ljust(66) + f)
+                print(v.hash_file(f, m[0]).decode('utf-8') + '  ' + f)
 
               except Exception as e:
-                print('\x1b[1;31mfailed'.ljust(73) + f + '\x1b[0m')
+                print('\x1b[1;31mfailed' + (' ' * (length - 4)) + f + '\x1b[0m')
 
             elif not os.path.exists(f):
-              print('\x1b[1;31mnot found'.ljust(73) + f + '\x1b[0m')
+              print('\x1b[1;31mnot found' + (' ' * (length - 7)) + f + '\x1b[0m')
 
             else:
-              print('\x1b[1;33munsupported'.ljust(73) + f + '\x1b[0m')
+              print('\x1b[1;33munsupported' + (' ' * (length - 9)) + f + '\x1b[0m')
 
       elif m[0] == 'chpass':
         opassword = getpass.getpass('Old Vaulty Password: ').encode('utf-8')
@@ -675,7 +678,7 @@ def main(cols=80, v=Vaulty()):
     print(' ' * (len(os.path.basename(sys.argv[0])) + 7) + ' sign [-k <private key>] <file>', file=sys.stderr)
     print(' ' * (len(os.path.basename(sys.argv[0])) + 7) + ' verify -k <public key> <file> [signature]', file=sys.stderr)
     print(' ' * (len(os.path.basename(sys.argv[0])) + 7) + ' chpass [file1] [file2] [...]', file=sys.stderr)
-    print(' ' * (len(os.path.basename(sys.argv[0])) + 7) + ' sha256 [file1] [file2] [...]', file=sys.stderr)
+    print(' ' * (len(os.path.basename(sys.argv[0])) + 7) + ' sha256|sha512 [file1] [file2] [...]', file=sys.stderr)
 
 
 if __name__ == '__main__':

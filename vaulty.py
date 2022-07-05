@@ -29,7 +29,7 @@ from cryptography.hazmat.backends import default_backend
 from cryptography.exceptions import InvalidSignature
 from cryptography.exceptions import InvalidTag
 
-__version__ = '1.3.1'
+__version__ = '1.3.2'
 
 class Vaulty():
   def __init__(self):
@@ -553,10 +553,32 @@ def main(cols=80, v=Vaulty()):
           for f in sys.argv[2:]:
             if os.path.isfile(f):
               try:
-                print(v.hash_file(f, m[0]).decode('utf-8') + '  ' + f)
+                if os.access(f, os.R_OK):
+                  print(v.hash_file(f, m[0]).decode('utf-8') + '  ' + f)
 
-              except Exception as e:
+                else:
+                  print('\x1b[1;31mpermission denied' + (' ' * (length - 15)) + f + '\x1b[0m')
+
+              except Exception:
                 print('\x1b[1;31mfailed' + (' ' * (length - 4)) + f + '\x1b[0m')
+
+            elif os.path.isdir(f):
+              for root, dirs, files in os.walk(f):
+                for fn in files:
+                  try:
+                    ffn = os.path.join(root, fn)
+                    if os.path.isfile(ffn):
+                      if os.access(ffn, os.R_OK):
+                        print(v.hash_file(ffn, m[0]).decode('utf-8') + '  ' + ffn)
+
+                      else:
+                        print('\x1b[1;31mpermission denied' + (' ' * (length - 15)) + ffn + '\x1b[0m')
+
+                    else:
+                      print('\x1b[1;33munsupported' + (' ' * (length - 9)) + ffn + '\x1b[0m')
+                      
+                  except Exception:
+                    print('\x1b[1;31mfailed' + (' ' * (length - 4)) + ffn + '\x1b[0m')
 
             elif not os.path.exists(f):
               print('\x1b[1;31mnot found' + (' ' * (length - 7)) + f + '\x1b[0m')
@@ -678,7 +700,7 @@ def main(cols=80, v=Vaulty()):
     print(' ' * (len(os.path.basename(sys.argv[0])) + 7) + ' sign [-k <private key>] <file>', file=sys.stderr)
     print(' ' * (len(os.path.basename(sys.argv[0])) + 7) + ' verify -k <public key> <file> [signature]', file=sys.stderr)
     print(' ' * (len(os.path.basename(sys.argv[0])) + 7) + ' chpass [file1] [file2] [...]', file=sys.stderr)
-    print(' ' * (len(os.path.basename(sys.argv[0])) + 7) + ' sha256|sha512 [file1] [file2] [...]', file=sys.stderr)
+    print(' ' * (len(os.path.basename(sys.argv[0])) + 7) + ' sha256|sha512 [file1|dir1] [file2|dir2] [...]', file=sys.stderr)
 
 
 if __name__ == '__main__':

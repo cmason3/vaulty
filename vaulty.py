@@ -551,21 +551,34 @@ def main(cols=80, v=Vaulty()):
           length = 64 if m[0] == 'sha256' else 128
 
           for f in sys.argv[2:]:
-            if os.path.isfile(f) or os.path.islink(f):
+            if os.path.isfile(f):
               try:
-                print(v.hash_file(f, m[0]).decode('utf-8') + '  ' + f)
+                if os.access(f, os.R_OK):
+                  print(v.hash_file(f, m[0]).decode('utf-8') + '  ' + f)
 
-              except Exception as e:
+                else:
+                  print('\x1b[1;31mpermission denied' + (' ' * (length - 15)) + f + '\x1b[0m')
+
+              except:
                 print('\x1b[1;31mfailed' + (' ' * (length - 4)) + f + '\x1b[0m')
 
             elif os.path.isdir(f):
               for root, dirs, files in os.walk(f):
                 for fn in files:
                   try:
-                    print(v.hash_file(os.path.join(root, fn), m[0]).decode('utf-8') + '  ' + os.path.join(root, fn))
+                    ffn = os.path.join(root, fn)
+                    if os.path.isfile(ffn):
+                      if os.access(ffn, os.R_OK):
+                        print(v.hash_file(ffn, m[0]).decode('utf-8') + '  ' + ffn)
 
-                  except Exception as e:
-                    print('\x1b[1;31mfailed' + (' ' * (length - 4)) + f + '\x1b[0m')
+                      else:
+                        print('\x1b[1;31mpermission denied' + (' ' * (length - 15)) + ffn + '\x1b[0m')
+
+                    else:
+                      print('\x1b[1;33munsupported' + (' ' * (length - 9)) + ffn + '\x1b[0m')
+                      
+                  except:
+                    print('\x1b[1;31mfailed' + (' ' * (length - 4)) + ffn + '\x1b[0m')
 
             elif not os.path.exists(f):
               print('\x1b[1;31mnot found' + (' ' * (length - 7)) + f + '\x1b[0m')

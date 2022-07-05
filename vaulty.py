@@ -29,7 +29,7 @@ from cryptography.hazmat.backends import default_backend
 from cryptography.exceptions import InvalidSignature
 from cryptography.exceptions import InvalidTag
 
-__version__ = '1.3.1'
+__version__ = '1.3.2'
 
 class Vaulty():
   def __init__(self):

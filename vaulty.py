@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 # Vaulty - Encrypt/Decrypt with ChaCha20-Poly1305
-# Copyright (c) 2021-2022 Chris Mason <chris@netnix.org>
+# Copyright (c) 2021-2023 Chris Mason <chris@netnix.org>
 #
 # Permission to use, copy, modify, and distribute this software for any
 # purpose with or without fee is hereby granted, provided that the above
@@ -29,7 +29,7 @@ from cryptography.hazmat.backends import default_backend
 from cryptography.exceptions import InvalidSignature
 from cryptography.exceptions import InvalidTag
 
-__version__ = '1.3.2'
+__version__ = '1.3.3'
 
 class Vaulty():
   def __init__(self):

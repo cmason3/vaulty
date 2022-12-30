@@ -9,15 +9,15 @@ for line in open('vaulty.py'):
 HERE = pathlib.Path(__file__).parent
 README = (HERE / "README.md").read_text()
 
-install_requires = ["cryptography>=2.7"]
+install_requires = ["cryptography>=3.1"]
 
-if sys.version_info[0] == 3 and sys.version_info[1] == 6:
-  install_requires = ["cryptography>=2.7,<37.0"]
+# if sys.version_info[0] == 3 and sys.version_info[1] == 6:
+#   install_requires = ["cryptography>=3.1,<37.0"]
 
 setup(
   name="pyvaulty",
   version=__version__,
-  python_requires=">=3.6",
+  python_requires=">=3.7",
   description="Encrypt/Decrypt with ChaCha20-Poly1305",
   long_description=README[README.find('#'):],
   long_description_content_type="text/markdown",

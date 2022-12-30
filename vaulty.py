@@ -25,11 +25,10 @@ from cryptography.hazmat.primitives.asymmetric.x448 import X448PublicKey
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
-from cryptography.hazmat.backends import default_backend
 from cryptography.exceptions import InvalidSignature
 from cryptography.exceptions import InvalidTag
 
-__version__ = '1.3.3'
+__version__ = '1.3.4'
 
 class Vaulty():
   def __init__(self):
@@ -49,7 +48,7 @@ class Vaulty():
     if salt is None:
       salt = os.urandom(16)
   
-    key = Scrypt(salt, 32, 2**16, 8, 1, default_backend()).derive(password)
+    key = Scrypt(salt, 32, 2**16, 8, 1).derive(password)
     self.__kcache[ckey] = [salt, key]
     return salt, key
 

@@ -28,7 +28,7 @@ from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 from cryptography.exceptions import InvalidSignature
 from cryptography.exceptions import InvalidTag
 
-__version__ = '1.3.4'
+__version__ = '1.3.5'
 
 class Vaulty():
   def __init__(self):

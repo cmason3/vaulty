@@ -1,5 +1,5 @@
 [![PyPI](https://img.shields.io/pypi/v/pyvaulty.svg)](https://pypi.python.org/pypi/pyvaulty/)
-![Python](https://img.shields.io/badge/python-≥&nbsp;3.7-brightgreen)
+![Python](https://img.shields.io/badge/python-≥&nbsp;3.8-brightgreen)
 
 ## Vaulty
 ### Encrypt/Decrypt with ChaCha20-Poly1305

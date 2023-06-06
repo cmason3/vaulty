@@ -17,7 +17,7 @@ install_requires = ["cryptography>=3.1"]
 setup(
   name="pyvaulty",
   version=__version__,
-  python_requires=">=3.7",
+  python_requires=">=3.8",
   description="Encrypt/Decrypt with ChaCha20-Poly1305",
   long_description=README[README.find('#'):],
   long_description_content_type="text/markdown",

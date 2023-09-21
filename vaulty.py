@@ -15,7 +15,11 @@
 # ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-import sys, os, base64, getpass
+import sys
+if sys.version_info < (3, 8):
+  sys.exit('Requires Python >= 3.8')
+
+import os, base64, getpass
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.kdf.scrypt import Scrypt
@@ -28,7 +32,7 @@ from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 from cryptography.exceptions import InvalidSignature
 from cryptography.exceptions import InvalidTag
 
-__version__ = '1.3.6'
+__version__ = '1.3.7'
 
 class Vaulty():
   def __init__(self):

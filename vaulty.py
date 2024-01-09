@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 # Vaulty - Encrypt/Decrypt with ChaCha20-Poly1305
-# Copyright (c) 2021-2023 Chris Mason <chris@netnix.org>
+# Copyright (c) 2021-2024 Chris Mason <chris@netnix.org>
 #
 # Permission to use, copy, modify, and distribute this software for any
 # purpose with or without fee is hereby granted, provided that the above
@@ -32,7 +32,7 @@ from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 from cryptography.exceptions import InvalidSignature
 from cryptography.exceptions import InvalidTag
 
-__version__ = '1.3.7'
+__version__ = '1.4.0'
 
 class Vaulty():
   def __init__(self):
@@ -47,14 +47,16 @@ class Vaulty():
     ckey = (password, salt)
 
     if ckey in self.__kcache:
+      e = self.__kcache[ckey]
+      self.__kcache[ckey] = e[0], e[1], e[2] + 1
       return self.__kcache[ckey]
 
     if salt is None:
       salt = os.urandom(16)
   
     key = Scrypt(salt, 32, 2**16, 8, 1).derive(password)
-    self.__kcache[ckey] = [salt, key]
-    return salt, key
+    self.__kcache[ckey] = [salt, key, 0]
+    return [salt, key, 0]
 
   def __encrypt_file(self, filepath, pdata, method):
     if os.path.getsize(filepath) < 2**31:
@@ -83,8 +85,8 @@ class Vaulty():
 
   def encrypt(self, plaintext, password, cols=None, armour=True):
     version = b'\x01'
-    salt, key = self.__derive_key(password)
-    nonce = os.urandom(12)
+    salt, key, uc = self.__derive_key(password)
+    nonce = os.urandom(12)[:-4] + uc.to_bytes(4, 'big')
     ciphertext = ChaCha20Poly1305(key).encrypt(nonce, plaintext, None)
 
     if armour:
@@ -695,7 +697,8 @@ def main(cols=80, v=Vaulty()):
             print('\x1b[1;31merror: password is mandatory\x1b[0m', file=sys.stderr)
 
   else:
-    print('Vaulty v' + __version__, file=sys.stderr)
+    print('Vaulty ' + __version__ + ' - Encrypt/Decrypt with ChaCha20-Poly1305', file=sys.stderr)
+    print('Copyright (c) 2021-2024 Chris Mason <chris@netnix.org>\n', file=sys.stderr)
     print('Usage: ' + os.path.basename(sys.argv[0]) + ' keygen', file=sys.stderr)
     print(' ' * (len(os.path.basename(sys.argv[0])) + 7) + ' keyinfo [public key]', file=sys.stderr)
     print(' ' * (len(os.path.basename(sys.argv[0])) + 7) + ' encrypt [-k <public key>] [file1] [file2] [...]', file=sys.stderr)

@@ -1,1 +1,1 @@
-../vaulty.py
+vaulty.py

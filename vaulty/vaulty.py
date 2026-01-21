@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 # Vaulty - Encrypt/Decrypt with ChaCha20-Poly1305
-# Copyright (c) 2021-2025 Chris Mason <chris@netnix.org>
+# Copyright (c) 2021-2026 Chris Mason <chris@netnix.org>
 #
 # Permission to use, copy, modify, and distribute this software for any
 # purpose with or without fee is hereby granted, provided that the above
@@ -16,8 +16,8 @@
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 import sys
-if sys.version_info < (3, 8):
-  sys.exit('Requires Python >= 3.8')
+if sys.version_info < (3, 10):
+  sys.exit('Requires Python >= 3.10')
 
 import os, base64, getpass
 from cryptography.hazmat.primitives import hashes
@@ -32,7 +32,7 @@ from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 from cryptography.exceptions import InvalidSignature
 from cryptography.exceptions import InvalidTag
 
-__version__ = '1.4.1'
+__version__ = '1.5.0'
 
 class Vaulty():
   def __init__(self):

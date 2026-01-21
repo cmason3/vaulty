@@ -1,2 +1,26 @@
+[project]
+name = "pyvaulty"
+dynamic = ["version"]
+requires-python = ">= 3.10"
+authors = [{ name = "Chris Mason", email = "chris@netnix.org" }]
+description = "Encrypt/Decrypt with ChaCha20-Poly1305"
+readme = "README.md"
+license = "MIT"
+classifiers = [
+  "Development Status :: 5 - Production/Stable",
+  "Programming Language :: Python :: 3"
+]
+
+[project.urls]
+Repository = "https://github.com/cmason3/vaulty.git"
+Issues = "https://github.com/cmason3/vaulty/issues"
+
+[project.scripts]
+vaulty = "vaulty:main"
+
 [build-system]
-requires = ["setuptools", "wheel"]
+requires = ["setuptools>=77.0.3"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.dynamic]
+version = { attr = "vaulty.__version__" }

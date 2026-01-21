@@ -32,7 +32,7 @@ from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 from cryptography.exceptions import InvalidSignature
 from cryptography.exceptions import InvalidTag
 
-__version__ = '1.5.0'
+__version__ = '1.5.1'
 
 class Vaulty():
   def __init__(self):
@@ -698,7 +698,7 @@ def main(cols=80, v=Vaulty()):
 
   else:
     print('Vaulty ' + __version__ + ' - Encrypt/Decrypt with ChaCha20-Poly1305', file=sys.stderr)
-    print('Copyright (c) 2021-2025 Chris Mason <chris@netnix.org>\n', file=sys.stderr)
+    print('Copyright (c) 2021-2026 Chris Mason <chris@netnix.org>\n', file=sys.stderr)
     print('Usage: ' + os.path.basename(sys.argv[0]) + ' keygen', file=sys.stderr)
     print(' ' * (len(os.path.basename(sys.argv[0])) + 7) + ' keyinfo [public key]', file=sys.stderr)
     print(' ' * (len(os.path.basename(sys.argv[0])) + 7) + ' encrypt [-k <public key>] [file1] [file2] [...]', file=sys.stderr)
